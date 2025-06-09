@@ -11,8 +11,8 @@ return [
   'scopes' => env('SPID_TRENTINO_SCOPES', 'openid profile.codicefiscale.me email offline_access'),
 
   'routes' => [
-    'login' => '/login',
-    'callback' => '/callback',
-    'logout' => '/logout',
+    'login' => '/aac/login',
+    'callback' => '/aac/callback',
+    'logout' => '/aac/logout',
   ],
 ];

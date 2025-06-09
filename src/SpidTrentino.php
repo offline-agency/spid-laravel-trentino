@@ -2,20 +2,18 @@
 
 namespace OfflineAgency\SpidLaravelTrentino;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
-use Jumbojett\OpenIDConnectClient;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Jumbojett\OpenIDConnectClient;
 use Jumbojett\OpenIDConnectClientException;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedIn;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedOut;
 
-
 class SpidTrentino
 {
-  protected $oidc;
+  protected OpenIDConnectClient $oidc;
 
   public function __construct()
   {
@@ -43,8 +41,10 @@ class SpidTrentino
   }
 
   /**
+   * Handles the AAC callback and stores user info in session.
+   *
+   * @return void
    * @throws OpenIDConnectClientException
-   * @throws BindingResolutionException
    */
   public function handleCallback(): void
   {
@@ -53,7 +53,6 @@ class SpidTrentino
 
     $accessToken = $this->oidc->getAccessToken();
     $refreshToken = $this->oidc->getRefreshToken();
-    $idToken = $this->oidc->getIdToken();
     $userInfo = $this->oidc->requestUserInfo();
 
     Log::debug('User info received from AAC Trentino:', (array) $userInfo);
@@ -61,11 +60,15 @@ class SpidTrentino
     Session::put('access_token', $accessToken);
     Session::put('refresh_token', $refreshToken);
 
-    // Replace this block with your actual user resolution/creation logic.
-    $user = app()->make('user.resolver')->resolveOrCreate((array) $userInfo);
+    $user = new SpidTrentinoUser((array) $userInfo);
 
-    Log::info('User logged in via AAC Trentino', ['user_id' => $user->id]);
-    Auth::login($user);
+    Log::info('User authenticated via AAC Trentino', [
+      'fiscal_number' => $user->fiscalNumber,
+      'openId' => $user->openId,
+      'email' => $user->email
+    ]);
+
+    Session::put('spid_trentino_user', $user->toArray());
 
     Event::dispatch(new SpidTrentinoLoggedIn($user));
   }
@@ -102,7 +105,6 @@ class SpidTrentino
 
   /**
    * Logs out the current user and clears the session.
-   * Also dispatches the AacTrentinoLogout event.
    *
    * @return void
    */
@@ -110,23 +112,26 @@ class SpidTrentino
   {
     Log::info('Logging out user.');
 
-    $user = Auth::user();
+    $user = new SpidTrentinoUser(Session::get('spid_trentino_user', []));
 
     Session::flush();
     Auth::logout();
 
     Log::info('Session flushed and user logged out.');
 
-    if ($user) {
-      Log::info('Dispatching AacTrentinoLogout event.', ['user_id' => $user->id]);
+    if ($user->fiscalNumber) {
+      Log::info('Dispatching SpidTrentinoLoggedOut event.', ['fiscal_number' => $user->fiscalNumber]);
       Event::dispatch(new SpidTrentinoLoggedOut($user));
     }
   }
 
   /**
+   * Returns the raw user info from AAC.
+   *
+   * @return object|null
    * @throws OpenIDConnectClientException
    */
-  public function getUserInfo()
+  public function getUserInfo(): ?object
   {
     Log::info('Fetching user info from AAC Trentino.');
     return $this->oidc->requestUserInfo();

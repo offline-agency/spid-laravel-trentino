@@ -18,15 +18,16 @@
     ],
     "require": {
         "php": "^8.2",
-        "illuminate/support": "^10.0|^11.0",
+        "firebase/php-jwt": "^6.11",
         "illuminate/auth": "^10.0|^11.0",
-        "illuminate/session": "^10.0|^11.0",
-        "illuminate/events": "^10.0|^11.0",
-        "illuminate/log": "^10.0|^11.0",
         "illuminate/config": "^10.0|^11.0",
         "illuminate/container": "^10.0|^11.0",
-        "laravel/framework": "^10.0|^11.0",
-        "jumbojett/openid-connect-php": "^0.9"
+        "illuminate/events": "^10.0|^11.0",
+        "illuminate/log": "^10.0|^11.0",
+        "illuminate/session": "^10.0|^11.0",
+        "illuminate/support": "^10.0|^11.0",
+        "jumbojett/openid-connect-php": "^0.9",
+        "laravel/framework": "^10.0|^11.0"
     },
     "require-dev": {
         "orchestra/testbench": "^8.36",

@@ -1,10 +1,9 @@
-Here’s an updated `README.md` section you can add to your Laravel package for **SpidLaravelTrentino**, documenting the new behavior and structure introduced through the recent improvements (controllers, config, middleware, session handling, etc.):
-
----
-
 # SPID Laravel Trentino
-
-This package provides integration with [AAC Trentino](https://www.trentino.it/) via OpenID Connect, allowing users to authenticate using SPID (Sistema Pubblico di Identità Digitale) with full Laravel compatibility.
+[![Latest Stable Version](https://poser.pugx.org/offline-agency/spid-laravel-trentino/v/stable)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
+[![Total Downloads](https://img.shields.io/packagist/dt/offline-agency/spid-laravel-trentino.svg?style=flat-square)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
+[![Build Status](https://github.com/offline-agency/spid-laravel-trentino/actions/workflows/test.yml/badge.svg)](https://github.com/offline-agency/spid-laravel-trentino/actions/workflows/test.yml)
+[![MIT Licensed](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
+This package provides integration with AAC Trentino via OpenID Connect, allowing users to authenticate using SPID (Sistema Pubblico di Identità Digitale) with full Laravel compatibility.
 
 ---
 
@@ -166,6 +165,19 @@ Event::listen(SpidTrentinoLoggedIn::class, function ($event) {
 The package automatically stores `access_token_expires_at` if `expires_in` is available in the token response.
 Use the provided middleware to refresh tokens or invalidate sessions gracefully.
 
----
+## Contributing
+Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
 
-Let me know if you want the `README.md` generated as a file or Markdown output directly.
+## Security
+If you discover any security-related issues, please email support@offlineagency.com instead of using the issue tracker.
+
+## Credits
+- [Giacomo Fabbian](https://github.com/Giacomo92)
+
+- [All Contributors](https://github.com/offline-agency/laravel-mongo-auto-sync/graphs/contributors)
+
+## About us
+Offline Agency is a web design agency based in Padua, Italy. You'll find an overview of our projects [on our website](https://offlineagency.it/#home).
+
+## License
+The MIT License (MIT). Please see [License File](LICENSE.md) for more information.

@@ -2,177 +2,210 @@
 
 namespace OfflineAgency\SpidLaravelTrentino;
 
-class SpidTrentinoUser
+use Illuminate\Contracts\Support\Arrayable;
+use JsonSerializable;
+use stdClass;
+
+/**
+ * Data‑transfer object that mirrors the SPID Trentino identity response
+ * and exposes strongly‑typed getters / setters plus Laravel‑style toArray().
+ *
+ * You can instantiate the DTO directly with the payload:
+ * ```php
+ * $user = new SpidTrentinoUser($payload);     // $payload may be an array OR an stdClass
+ * $user = SpidTrentinoUser::fromJson($json);  // convenience helpers also provided
+ * ```
+ */
+class SpidTrentinoUser implements Arrayable, JsonSerializable
 {
-    private $sub;
-    private $zoneinfo;
-    private $entiIssuersource;
-    private $preferredUsername;
-    private $locale;
-    private $givenName;
-    private $entiAcr;
-    private $entiSpid;
-    private $realm;
-    private $entiCodicefiscale;
-    private $id;
-    private $familyName;
+    // ───────────────────────────────────────────────────────────────
+    // Core scalar claims (pre‑initialized to avoid uninitialized‑typed‑property errors)
+    // ───────────────────────────────────────────────────────────────
+    private string $sub               = '';
+    private string $zoneinfo          = '';
+    private string $preferredUsername = '';
+    private string $locale            = '';
+    private string $givenName         = '';
+    private string $realm             = '';
+    private string $id                = '';
+    private string $familyName        = '';
 
-    // Getters and Setters
+    // ───────────────────────────────────────────────────────────────
+    // Complex / nested claims (kept as associative arrays for brevity)
+    // ───────────────────────────────────────────────────────────────
+    private array $entiIssuerSource   = [];
+    private array $entiAcr           = [];
+    private array $entiSpid          = [];
+    private array $entiCodiceFiscale = [];
 
-    public function getSub()
+    // ───────────────────────────────────────────────────────────────
+    // Constructor – optional one‑shot hydration
+    // ───────────────────────────────────────────────────────────────
+
+    /**
+     * @param array|stdClass $data  SPID payload (associative array or stdClass)
+     */
+    public function __construct(array|stdClass $data = [])
     {
-        return $this->sub;
+        if ($data !== []) {
+            // Ensure we have an array for uniform processing
+            if ($data instanceof stdClass) {
+                $data = json_decode(json_encode($data), true);
+            }
+
+            // Scalar claims
+            $this->setSub($data['sub'] ?? '')
+                ->setZoneinfo($data['zoneinfo'] ?? '')
+                ->setPreferredUsername($data['preferred_username'] ?? '')
+                ->setLocale($data['locale'] ?? '')
+                ->setGivenName($data['given_name'] ?? '')
+                ->setRealm($data['realm'] ?? '')
+                ->setId($data['id'] ?? '')
+                ->setFamilyName($data['family_name'] ?? '')
+
+                // Nested claims
+                ->setEntiIssuerSource($data['enti-issuersource'] ?? [])
+                ->setEntiAcr($data['enti-acr'] ?? [])
+                ->setEntiSpid($data['enti-spid'] ?? [])
+                ->setEntiCodiceFiscale($data['enti-codicefiscale'] ?? []);
+        }
     }
 
-    public function setSub($sub)
+    // ───────────────────────────────────────────────────────────────
+    // Statics - hydrators / factories (all delegate to the constructor)
+    // ───────────────────────────────────────────────────────────────
+
+    public static function fromArray(array $data): self
     {
-        $this->sub = $sub;
+        return new self($data);
     }
 
-    public function getZoneinfo()
+    public static function fromJson(string $json, bool $throwOnError = true): self
     {
-        return $this->zoneinfo;
+        $array = json_decode($json, true);
+
+        if ($array === null && json_last_error() !== JSON_ERROR_NONE) {
+            if ($throwOnError) {
+                throw new \InvalidArgumentException('Invalid JSON supplied: ' . json_last_error_msg());
+            }
+            $array = [];
+        }
+
+        return new self($array);
     }
 
-    public function setZoneinfo($zoneinfo)
+    public static function fromStdClass(stdClass $object): self
     {
-        $this->zoneinfo = $zoneinfo;
+        return new self($object);
     }
 
-    public function getEntiIssuersource()
-    {
-        return $this->entiIssuersource;
+    // ───────────────────────────────────────────────────────────────
+    // Getters & Setters – scalar claims
+    // ───────────────────────────────────────────────────────────────
+
+    public function getSub(): string { return $this->sub; }
+    public function setSub(string $sub): self { $this->sub = $sub; return $this; }
+
+    public function getZoneinfo(): string { return $this->zoneinfo; }
+    public function setZoneinfo(string $zoneinfo): self { $this->zoneinfo = $zoneinfo; return $this; }
+
+    public function getPreferredUsername(): string { return $this->preferredUsername; }
+    public function setPreferredUsername(string $preferredUsername): self { $this->preferredUsername = $preferredUsername; return $this; }
+
+    public function getLocale(): string { return $this->locale; }
+    public function setLocale(string $locale): self { $this->locale = $locale; return $this; }
+
+    public function getGivenName(): string { return $this->givenName; }
+    public function setGivenName(string $givenName): self { $this->givenName = $givenName; return $this; }
+
+    public function getRealm(): string { return $this->realm; }
+    public function setRealm(string $realm): self { $this->realm = $realm; return $this; }
+
+    public function getId(): string { return $this->id; }
+    public function setId(string $id): self { $this->id = $id; return $this; }
+
+    public function getFamilyName(): string { return $this->familyName; }
+    public function setFamilyName(string $familyName): self { $this->familyName = $familyName; return $this; }
+
+    // ───────────────────────────────────────────────────────────────
+    // Getters & Setters – nested/complex claims (arrays)
+    // ───────────────────────────────────────────────────────────────
+
+    /** @return array{issuerSource?:string,id?:string} */
+    public function getEntiIssuerSource(): array { return $this->entiIssuerSource; }
+    /** @param array|stdClass $entiIssuerSource */
+    public function setEntiIssuerSource(array|stdClass $entiIssuerSource): self {
+        $this->entiIssuerSource = (array) $entiIssuerSource;
+        return $this;
     }
 
-    public function setEntiIssuersource($entiIssuersource)
-    {
-        $this->entiIssuersource = $entiIssuersource;
+    /** @return array{acr?:string,id?:string} */
+    public function getEntiAcr(): array { return $this->entiAcr; }
+    /** @param array|stdClass $entiAcr */
+    public function setEntiAcr(array|stdClass $entiAcr): self {
+        $this->entiAcr = (array) $entiAcr;
+        return $this;
     }
 
-    public function getPreferredUsername()
-    {
-        return $this->preferredUsername;
+    /** @return array{isSpid?:string,spidCode?:string,id?:string} */
+    public function getEntiSpid(): array { return $this->entiSpid; }
+    /** @param array|stdClass $entiSpid */
+    public function setEntiSpid(array|stdClass $entiSpid): self {
+        $this->entiSpid = (array) $entiSpid;
+        return $this;
     }
 
-    public function setPreferredUsername($preferredUsername)
-    {
-        $this->preferredUsername = $preferredUsername;
+    /** @return array{fiscalCode?:string,id?:string} */
+    public function getEntiCodiceFiscale(): array { return $this->entiCodiceFiscale; }
+    /** @param array|stdClass $entiCodiceFiscale */
+    public function setEntiCodiceFiscale(array|stdClass $entiCodiceFiscale): self {
+        $this->entiCodiceFiscale = (array) $entiCodiceFiscale;
+        return $this;
     }
 
-    public function getLocale()
+    // ───────────────────────────────────────────────────────────────
+    // Derived helpers
+    // ───────────────────────────────────────────────────────────────
+
+    public function getFiscalNumber(): string
     {
-        return $this->locale;
+        return $this->entiCodiceFiscale['fiscalCode'] ?? '';
     }
 
-    public function setLocale($locale)
-    {
-        $this->locale = $locale;
-    }
-
-    public function getGivenName()
+    public function getName(): string
     {
         return $this->givenName;
     }
 
-    public function setGivenName($givenName)
-    {
-        $this->givenName = $givenName;
-    }
-
-    public function getEntiAcr()
-    {
-        return $this->entiAcr;
-    }
-
-    public function setEntiAcr($entiAcr)
-    {
-        $this->entiAcr = $entiAcr;
-    }
-
-    public function getEntiSpid()
-    {
-        return $this->entiSpid;
-    }
-
-    public function setEntiSpid($entiSpid)
-    {
-        $this->entiSpid = $entiSpid;
-    }
-
-    public function getRealm()
-    {
-        return $this->realm;
-    }
-
-    public function setRealm($realm)
-    {
-        $this->realm = $realm;
-    }
-
-    public function getEntiCodicefiscale()
-    {
-        return $this->entiCodicefiscale;
-    }
-
-    public function setEntiCodicefiscale($entiCodicefiscale)
-    {
-        $this->entiCodicefiscale = $entiCodicefiscale;
-    }
-
-    public function getId()
-    {
-        return $this->id;
-    }
-
-    public function setId($id)
-    {
-        $this->id = $id;
-    }
-
-    public function getFamilyName()
+    public function getSurname(): string
     {
         return $this->familyName;
     }
 
-    public function setFamilyName($familyName)
-    {
-        $this->familyName = $familyName;
-    }
+    // ───────────────────────────────────────────────────────────────
+    // Arrayable / JsonSerializable contracts
+    // ───────────────────────────────────────────────────────────────
 
-    // toArray Method to Convert Object to Array
-    public function toArray()
+    public function toArray(): array
     {
         return [
-            'sub' => $this->getSub(),
-            'zoneinfo' => $this->getZoneinfo(),
-            'enti-issuersource' => $this->getEntiIssuersource(),
-            'preferred_username' => $this->getPreferredUsername(),
-            'locale' => $this->getLocale(),
-            'given_name' => $this->getGivenName(),
-            'enti-acr' => $this->getEntiAcr(),
-            'enti-spid' => $this->getEntiSpid(),
-            'realm' => $this->getRealm(),
-            'enti-codicefiscale' => $this->getEntiCodicefiscale(),
-            'id' => $this->getId(),
-            'family_name' => $this->getFamilyName(),
+            'sub'                   => $this->sub,
+            'zoneinfo'              => $this->zoneinfo,
+            'enti-issuersource'     => $this->entiIssuerSource,
+            'preferred_username'    => $this->preferredUsername,
+            'locale'                => $this->locale,
+            'given_name'            => $this->givenName,
+            'enti-acr'              => $this->entiAcr,
+            'enti-spid'             => $this->entiSpid,
+            'realm'                 => $this->realm,
+            'enti-codicefiscale'    => $this->entiCodiceFiscale,
+            'id'                    => $this->id,
+            'family_name'           => $this->familyName,
         ];
     }
 
-    // Method to Get Fiscal Number (fiscalCode)
-    public function getFiscalNumber()
+    public function jsonSerialize(): array
     {
-        return isset($this->entiCodicefiscale['fiscalCode']) ? $this->entiCodicefiscale['fiscalCode'] : null;
-    }
-
-    // Method to Get Full Name
-    public function getName()
-    {
-        return $this->getGivenName(); // Return only the given name
-    }
-
-    // Method to Get Surname (Family Name)
-    public function getSurname()
-    {
-        return $this->getFamilyName(); // Return only the family name
+        return $this->toArray();
     }
 }

@@ -66,6 +66,10 @@ class SpidTrentino
     Session::put('spid_trentino_user', $user->toArray());
     Session::put('refresh_token', $refreshToken);
     Session::put('access_token_expires_at', $expiresAt);
+    Log::debug('[SPID] User info stored in session', (array) $user);
+    Log::debug('[SPID] Refresh token stored in session', ['refresh_token' => $refreshToken]);
+    Log::debug('[SPID] Access token expires at', ['expires_at' => $expiresAt]);
+    Log::debug('[SPID] Access token stored in session', ['access_token' => $accessToken]);
 
     Event::dispatch(new SpidTrentinoLoggedIn($user));
   }

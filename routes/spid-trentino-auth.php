@@ -9,8 +9,8 @@ use OfflineAgency\SpidLaravelTrentino\SpidTrentino;
 |--------------------------------------------------------------------------
 */
 
-$controller = config('spid.auth_controller', SpidAuthController::class);
-$routes     = config('spid.routes');
+$controller = config('spid-laravel-trentino.auth_controller', SpidAuthController::class);
+$routes     = config('spid-laravel-trentino.routes');
 
 /* ---------------------- LOGIN ---------------------- *
  * Redirects the user to the AAC / IdP login endpoint.              */

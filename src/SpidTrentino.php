@@ -64,6 +64,8 @@ class SpidTrentino
 
     $user = new SpidTrentinoUser((array) $userInfo);
     Session::put('spid_trentino_user', $user->toArray());
+    Session::put('refresh_token', $refreshToken);
+    Session::put('access_token_expires_at', $expiresAt);
 
     Event::dispatch(new SpidTrentinoLoggedIn($user));
   }

@@ -32,6 +32,8 @@ class SpidAuthController extends Controller
     Log::info('SpidAuthController:callback', ['spidUser' => $spidUser]);
     $this->authenticateFromSpid($spidUser);
     Log::debug('[SPID] User authenticated - callback', ['user_id' => Auth::id()]);
+
+    Log::debug('Redirect to' . $this->redirectTo());
     return redirect()->intended($this->redirectTo());
   }
 

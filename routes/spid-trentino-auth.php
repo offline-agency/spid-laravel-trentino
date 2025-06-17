@@ -16,7 +16,9 @@ $routes     = config('spid-laravel-trentino.routes');
  * Redirects the user to the AAC / IdP login endpoint.              */
 Route::get($routes['login'], function (SpidTrentino $spid) {
   return $spid->redirectToLogin();                 // genera HTTP 302 → IdP
-})->name('spid.login');
+})
+  ->middleware(['web'])
+  ->name('spid.login');
 
 /* -------------------- CALLBACK --------------------- *
  * Handled by the controller (default or custom) to:             *
@@ -25,8 +27,10 @@ Route::get($routes['login'], function (SpidTrentino $spid) {
  *   - redirect using redirectTo() / intended()
  */
 Route::get($routes['callback'], [$controller, 'callback'])
+  ->middleware(['web'])
   ->name('spid.callback');
 
 /* -------------------- LOGOUT ----------------------- */
 Route::post($routes['logout'], [$controller, 'logout'])
+  ->middleware(['web'])
   ->name('spid.logout');

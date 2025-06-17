@@ -28,7 +28,6 @@ trait SpidAuthenticatesUsers
 
     /** 3. Sync profile data (updated every login or set on first creation) */
     $user->fill([
-      'email'              => $spidUser->getEmail(),
       'name'               => $spidUser->getName(),
       'surname'            => $spidUser->getSurname(),
       'preferred_username' => $spidUser->getPreferredUsername(),

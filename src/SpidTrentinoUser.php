@@ -171,10 +171,14 @@ class SpidTrentinoUser implements JsonSerializable
 
   /* =========================================================
      Helper derivati                                          */
-  public function getName(): ?string
+  public function getFullName(): ?string
   {
     return trim("{$this->givenName} {$this->familyName}");
   }
+    public function getName(): ?string
+    {
+        return $this->givenName;
+    }
 
   /** Alias che impedisce l’eccezione “undefined method getSurname()” */
   public function getSurname(): ?string

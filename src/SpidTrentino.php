@@ -22,15 +22,20 @@ class SpidTrentino
   public function __construct()
   {
     $this->oidc = new OpenIDConnectClient(
-      config('spid-trentino.provider_url'),
-      config('spid-trentino.client_id'),
-      config('spid-trentino.client_secret')
+      config('spid-laravel-trentino.provider_url'),
+      config('spid-laravel-trentino.client_id'),
+      config('spid-laravel-trentino.client_secret')
     );
 
-    $this->oidc
-      ->setRedirectURL(config('spid-trentino.redirect_uri'))
-      ->addScope(config('spid-trentino.scopes'))
-      ->setCodeChallengeMethod('S256');
+    Log::info(config('spid-laravel-trentino.provider_url'));
+    Log::info(config('spid-laravel-trentino.client_id'));
+    Log::info(config('spid-laravel-trentino.client_secret'));
+    Log::info(config('spid-laravel-trentino.redirect_uri'));
+    Log::info(config('spid-laravel-trentino.scopes'));
+
+    $this->oidc->setRedirectURL(config('spid-laravel-trentino.redirect_uri'));
+    $this->oidc->addScope(config('spid-laravel-trentino.scopes'));
+    $this->oidc->setCodeChallengeMethod('S256');
   }
 
   public function redirectToLogin(): bool
@@ -154,7 +159,7 @@ class SpidTrentino
     $idToken = $response['id_token'];
 
     // Discover JWKS URI from provider base URL
-    $jwksUri = rtrim(config('spid-trentino.provider_url'), '/') . '/.well-known/jwks.json';
+    $jwksUri = rtrim(config('spid-laravel-trentino.provider_url'), '/') . '/.well-known/jwks.json';
     $jwks = Http::get($jwksUri)->json();
 
     if (! isset($jwks['keys'])) {

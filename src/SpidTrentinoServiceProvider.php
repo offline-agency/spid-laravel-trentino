@@ -14,7 +14,7 @@ class SpidTrentinoServiceProvider extends ServiceProvider
     if ($this->app->runningInConsole()) {
       // Config publishing
       $this->publishes([
-        __DIR__ . '/../config/config.php' => config_path('spid-trentino.php'),
+        __DIR__ . '/../config/config.php' => config_path('spid-laravel-trentino.php'),
       ], 'config');
 
     }
@@ -29,10 +29,10 @@ class SpidTrentinoServiceProvider extends ServiceProvider
   public function register(): void
   {
     // Merge default config
-    $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'spid-trentino');
+    $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'spid-laravel-trentino');
 
     // Bind the main service to the container
-    $this->app->singleton('spid-trentino.auth', function ($app) {
+    $this->app->singleton('spid-laravel-trentino.auth', function ($app) {
       return $app->make(SpidTrentino::class);
     });
   }

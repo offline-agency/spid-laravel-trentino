@@ -46,8 +46,15 @@ class RefreshSpidTokenIfNeeded
         }
       }
     } catch (OpenIDConnectClientException $e) {
-      // Something went wrong while talking to AAC
-      Log::error('[SPID] Access-token refresh error: '.$e->getMessage());
+      try {
+        Log::error('[SPID] Access-token refresh error', [
+          'message'         => $e->getMessage(),
+          'session_id_hash' => hash('sha256', (string) Session::getId()),
+          'timestamp'       => now()->toIso8601String(),
+        ]);
+      } catch (\Throwable $logEx) {
+        // silent
+      }
 
       // Purge session data so the next request triggers a full re-authentication
       Session::forget([

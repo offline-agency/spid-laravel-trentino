@@ -80,4 +80,24 @@ return [
   | SpidAuthenticatesUsers::redirectTo() will be used instead.
   */
   'redirect_to' => '/dashboard', // or null
+
+  /*
+  |--------------------------------------------------------------------------
+  | Transaction Log (SPID Retention Policy compliance)
+  |--------------------------------------------------------------------------
+  | The Italian SPID/CIE OIDC regulations mandate that every Relying Party
+  | maintain an encrypted transaction log retained for at least 24 months.
+  |
+  | enabled          – Set to false to disable logging (dev/test only).
+  | table            – Database table name for the transaction log.
+  | retention_months – Minimum months to retain records (floor: 24).
+  |
+  | Schedule the prune command in your console kernel:
+  |   $schedule->command('spid:prune-logs')->daily();
+  */
+  'transaction_log' => [
+    'enabled'          => env('SPID_TRANSACTION_LOG_ENABLED', true),
+    'table'            => env('SPID_TRANSACTION_LOG_TABLE', 'spid_transaction_logs'),
+    'retention_months' => env('SPID_TRANSACTION_LOG_RETENTION_MONTHS', 24),
+  ],
 ];

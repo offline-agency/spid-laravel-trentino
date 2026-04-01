@@ -165,6 +165,90 @@ Event::listen(SpidTrentinoLoggedIn::class, function ($event) {
 The package automatically stores `access_token_expires_at` if `expires_in` is available in the token response.
 Use the provided middleware to refresh tokens or invalidate sessions gracefully.
 
+---
+
+## Transaction Log (SPID Compliance)
+
+The Italian SPID/CIE OIDC regulations ([Retention Policy](https://docs.italia.it/italia/spid/spid-cie-oidc-docs/it/versione-corrente/log_management.html)) mandate that every Relying Party maintain an encrypted transaction log of all OIDC authentication messages for a **minimum of 24 months**.
+
+This package includes a fully compliant transaction log subsystem.
+
+### Setup
+
+Publish and run the migration:
+
+```bash
+php artisan vendor:publish --tag=spid-migrations
+php artisan migrate
+```
+
+### Configuration
+
+The following keys are available in `config/spid-laravel-trentino.php`:
+
+```php
+'transaction_log' => [
+    'enabled'          => env('SPID_TRANSACTION_LOG_ENABLED', true),
+    'table'            => env('SPID_TRANSACTION_LOG_TABLE', 'spid_transaction_logs'),
+    'retention_months' => env('SPID_TRANSACTION_LOG_RETENTION_MONTHS', 24),
+],
+```
+
+Set `SPID_TRANSACTION_LOG_ENABLED=false` in your `.env` to disable logging (useful for local development or test environments).
+
+### What gets logged
+
+Every OIDC lifecycle event is recorded automatically:
+
+| Event | Trigger |
+|---|---|
+| `authentication_request` | When the user is redirected to the IdP |
+| `authentication_response` | When the IdP callback is received |
+| `token_request` | Before token exchange |
+| `token_response` | After token exchange |
+| `userinfo_request` | Before userinfo fetch |
+| `userinfo_response` | After userinfo fetch |
+| `refresh_request` | Before access token refresh |
+| `refresh_response` | After access token refresh |
+| `logout` | On SPID logout |
+
+### Security properties
+
+- **Encryption at rest**: the `payload` column uses Laravel's `encrypted` cast (AES-256-CBC via `APP_KEY`).
+- **Integrity / non-repudiation**: every record stores a `payload_hmac` (HMAC-SHA256 of the raw JSON payload before encryption). Use `verifyIntegrity()` to verify a record has not been tampered with:
+
+```php
+use OfflineAgency\SpidLaravelTrentino\Models\SpidTransactionLog;
+
+$record = SpidTransactionLog::find($id);
+
+if (! $record->verifyIntegrity()) {
+    // Record has been tampered with
+}
+```
+
+- **No sensitive secrets logged**: `client_secret` is never included in any log payload.
+
+### Pruning expired records
+
+Records older than the retention threshold can be pruned with:
+
+```bash
+php artisan spid:prune-logs
+php artisan spid:prune-logs --months=36   # custom retention (min 24)
+php artisan spid:prune-logs --dry-run     # preview without deleting
+```
+
+Schedule daily pruning in your console kernel:
+
+```php
+$schedule->command('spid:prune-logs')->daily();
+```
+
+The command will refuse to prune below 24 months, clamping the value and emitting a warning if a shorter period is requested.
+
+---
+
 ## Contributing
 Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
 

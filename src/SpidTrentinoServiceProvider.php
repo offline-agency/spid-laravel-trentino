@@ -3,6 +3,8 @@
 namespace OfflineAgency\SpidLaravelTrentino;
 
 use Illuminate\Support\ServiceProvider;
+use OfflineAgency\SpidLaravelTrentino\Console\Commands\PruneSpidTransactionLogs;
+use OfflineAgency\SpidLaravelTrentino\Services\SpidTransactionLogger;
 
 class SpidTrentinoServiceProvider extends ServiceProvider
 {
@@ -17,6 +19,12 @@ class SpidTrentinoServiceProvider extends ServiceProvider
         __DIR__ . '/../config/config.php' => config_path('spid-laravel-trentino.php'),
       ], 'config');
 
+      // Migration publishing
+      $this->publishes([
+        __DIR__ . '/../database/migrations/' => database_path('migrations'),
+      ], 'spid-migrations');
+
+      $this->commands([PruneSpidTransactionLogs::class]);
     }
     $this->loadRoutesFrom(__DIR__.'/../routes/spid-trentino-auth.php');
     $this->loadViewsFrom(__DIR__ . '/../resources/views', 'spid-laravel-trentino');
@@ -35,5 +43,8 @@ class SpidTrentinoServiceProvider extends ServiceProvider
     $this->app->singleton('spid-laravel-trentino.auth', function ($app) {
       return $app->make(SpidTrentino::class);
     });
+
+    // Transaction logger singleton
+    $this->app->singleton(SpidTransactionLogger::class, fn () => new SpidTransactionLogger());
   }
 }

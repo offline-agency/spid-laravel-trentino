@@ -11,12 +11,14 @@ use Illuminate\Support\Facades\Session;
 use Jumbojett\OpenIDConnectClientException;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedIn;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedOut;
+use OfflineAgency\SpidLaravelTrentino\Services\SpidTransactionLogger;
 use Firebase\JWT\JWT;
 use Firebase\JWT\JWK;
 
 class SpidTrentino
 {
   protected LaravelSessionOpenIDConnectClient $oidc;
+  protected SpidTransactionLogger $transactionLogger;
 
   public function __construct()
   {
@@ -37,11 +39,25 @@ class SpidTrentino
     $this->oidc->setRedirectURL(config('spid-laravel-trentino.redirect_uri'));
     $this->oidc->addScope(config('spid-laravel-trentino.scopes'));
     $this->oidc->setCodeChallengeMethod('S256');
+
+    $this->transactionLogger = app(SpidTransactionLogger::class);
   }
 
   public function redirectToLogin(): bool
   {
     Log::info('[SPID] Redirecting to AAC Trentino login');
+
+    $transactionId = SpidTransactionLogger::newTransactionId();
+    Session::put('spid_transaction_id', $transactionId);
+
+    $this->transactionLogger->logAuthenticationRequest($transactionId, [
+      'provider_url'           => config('spid-laravel-trentino.provider_url'),
+      'client_id'              => config('spid-laravel-trentino.client_id'),
+      'redirect_uri'           => config('spid-laravel-trentino.redirect_uri'),
+      'scopes'                 => config('spid-laravel-trentino.scopes'),
+      'code_challenge_method'  => 'S256',
+    ]);
+
     return $this->oidc->authenticate();
   }
 
@@ -51,12 +67,38 @@ class SpidTrentino
   public function handleCallback(): void
   {
     Log::info('[SPID] Handling AAC callback');
+
+    $txId = Session::get('spid_transaction_id');
+
+    $this->transactionLogger->logAuthenticationResponse($txId ?? 'unknown', [
+      'code'  => $_REQUEST['code'] ?? null,
+      'state' => $_REQUEST['state'] ?? null,
+    ]);
+
     $this->oidc->authenticate();
 
     $accessToken  = $this->oidc->getAccessToken();
     $refreshToken = $this->oidc->getRefreshToken();
     $expiresAt    = $this->extractExpiry();
-    $userInfo     = $this->oidc->requestUserInfo();
+
+    $tokenResponse = method_exists($this->oidc, 'getTokenResponse') ? $this->oidc->getTokenResponse() : [];
+
+    $this->transactionLogger->logTokenRequest($txId ?? 'unknown', [
+      'grant_type'   => 'authorization_code',
+      'client_id'    => config('spid-laravel-trentino.client_id'),
+      'redirect_uri' => config('spid-laravel-trentino.redirect_uri'),
+    ]);
+
+    $this->transactionLogger->logTokenResponse(
+      $txId ?? 'unknown',
+      $this->sanitizeTokenResponse(is_array($tokenResponse) ? $tokenResponse : []),
+    );
+
+    $this->transactionLogger->logUserInfoRequest($txId ?? 'unknown', []);
+
+    $userInfo = $this->oidc->requestUserInfo();
+
+    $this->transactionLogger->logUserInfoResponse($txId ?? 'unknown', (array) $userInfo);
 
     // Validate ID token, if available
     $this->validateIdToken();
@@ -88,11 +130,25 @@ class SpidTrentino
       return;
     }
 
+    $txId = Session::get('spid_transaction_id') ?? SpidTransactionLogger::newTransactionId();
+
+    $this->transactionLogger->logRefreshRequest($txId, [
+      'grant_type' => 'refresh_token',
+      'client_id'  => config('spid-laravel-trentino.client_id'),
+    ]);
+
     $this->oidc->refreshToken($refreshToken);
 
     $accessToken  = $this->oidc->getAccessToken();
     $newRefresh   = $this->oidc->getRefreshToken() ?: $refreshToken;
     $expiresAt    = $this->extractExpiry();
+
+    $tokenResponse = method_exists($this->oidc, 'getTokenResponse') ? $this->oidc->getTokenResponse() : [];
+
+    $this->transactionLogger->logRefreshResponse(
+      $txId,
+      $this->sanitizeTokenResponse(is_array($tokenResponse) ? $tokenResponse : []),
+    );
 
     $this->storeTokensInSession($accessToken, $newRefresh, $expiresAt);
   }
@@ -100,6 +156,11 @@ class SpidTrentino
   public function logout(): void
   {
     $user = new SpidTrentinoUser(Session::get('spid_trentino_user', []));
+    $txId = Session::get('spid_transaction_id');
+
+    $this->transactionLogger->logLogout($txId ?? 'unknown', [
+      'sub' => $user->fiscalNumber,
+    ]);
 
     Session::flush();
     Auth::logout();
@@ -144,6 +205,12 @@ class SpidTrentino
     } else {
       Session::forget('access_token_expires_at');
     }
+  }
+
+  private function sanitizeTokenResponse(array $tokenResponse): array
+  {
+    unset($tokenResponse['client_secret']);
+    return $tokenResponse;
   }
 
   /**

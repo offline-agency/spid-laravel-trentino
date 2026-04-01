@@ -19,11 +19,8 @@ use Jumbojett\OpenIDConnectClient;
  */
 class LaravelSessionOpenIDConnectClient extends OpenIDConnectClient
 {
-    private const OIDC_KEYS = [
-        'openid_connect_state',
-        'openid_connect_nonce',
-        'openid_connect_code_verifier',
-    ];
+    /** @var array<string, mixed> In-memory buffer of all values written via setSessionKey() */
+    private array $pendingSessionData = [];
 
     protected function startSession(): void
     {
@@ -33,16 +30,9 @@ class LaravelSessionOpenIDConnectClient extends OpenIDConnectClient
     {
         Session::save();
 
-        $state = Session::get('openid_connect_state');
+        $state = $this->pendingSessionData['openid_connect_state'] ?? null;
         if ($state) {
-            $data = [];
-            foreach (self::OIDC_KEYS as $key) {
-                $value = Session::get($key);
-                if ($value !== null) {
-                    $data[$key] = $value;
-                }
-            }
-            Cache::put("oidc:{$state}", $data, now()->addMinutes(10));
+            Cache::put("oidc:{$state}", $this->pendingSessionData, now()->addMinutes(10));
         }
     }
 
@@ -68,11 +58,13 @@ class LaravelSessionOpenIDConnectClient extends OpenIDConnectClient
     protected function setSessionKey($key, $value): void
     {
         Session::put($key, $value);
+        $this->pendingSessionData[$key] = $value;
     }
 
     protected function unsetSessionKey($key): void
     {
         Session::forget($key);
+        unset($this->pendingSessionData[$key]);
 
         if ($key === 'openid_connect_state' && isset($_REQUEST['state'])) {
             Cache::forget("oidc:{$_REQUEST['state']}");

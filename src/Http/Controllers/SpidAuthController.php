@@ -23,18 +23,33 @@ class SpidAuthController extends Controller
    */
   public function callback(): RedirectResponse
   {
-    $spidTrentino = new SpidTrentino();
-    $spidTrentino->handleCallback();
+    try {
+      $spidTrentino = new SpidTrentino();
+      $spidTrentino->handleCallback();
 
-    $sessionUser = Session::get('spid_trentino_user');
-    $spidUser = new SpidTrentinoUser((array) $sessionUser);
+      $sessionUser = Session::get('spid_trentino_user');
+      $spidUser = new SpidTrentinoUser((array) $sessionUser);
 
-    Log::info('SpidAuthController:callback', ['spidUser' => $spidUser]);
-    $this->authenticateFromSpid($spidUser);
-    Log::debug('[SPID] User authenticated - callback', ['user_id' => Auth::id()]);
+      Log::info('SpidAuthController:callback', ['spidUser' => $spidUser]);
+      $this->authenticateFromSpid($spidUser);
+      Log::debug('[SPID] User authenticated - callback', ['user_id' => Auth::id()]);
 
-    Log::debug('Redirect to' . $this->redirectTo());
-    return redirect()->intended($this->redirectTo());
+      Log::debug('Redirect to' . $this->redirectTo());
+      return redirect()->intended($this->redirectTo());
+    } catch (OpenIDConnectClientException $e) {
+      try {
+        Log::error('[SPID] Token exchange failed', [
+          'message'                => $e->getMessage(),
+          'session_id_hash'        => hash('sha256', (string) Session::getId()),
+          'has_oidc_state'         => isset($_SESSION['openid_connect_state']),
+          'has_oidc_code_verifier' => isset($_SESSION['openid_connect_code_verifier']),
+          'timestamp'              => now()->toIso8601String(),
+        ]);
+      } catch (\Throwable $logEx) {
+        // silent
+      }
+      throw $e;
+    }
   }
 
   /* ---------------- logout locale --------------- */

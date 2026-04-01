@@ -27,11 +27,17 @@ class SpidTrentino
       config('spid-laravel-trentino.client_secret')
     );
 
-    Log::info(config('spid-laravel-trentino.provider_url'));
-    Log::info(config('spid-laravel-trentino.client_id'));
-    Log::info(config('spid-laravel-trentino.client_secret'));
-    Log::info(config('spid-laravel-trentino.redirect_uri'));
-    Log::info(config('spid-laravel-trentino.scopes'));
+    try {
+      Log::info('[SPID] SpidTrentino initialized', [
+        'provider_url'     => config('spid-laravel-trentino.provider_url'),
+        'client_id_set'    => ! empty(config('spid-laravel-trentino.client_id')),
+        'client_secret_set' => ! empty(config('spid-laravel-trentino.client_secret')),
+        'redirect_uri'     => config('spid-laravel-trentino.redirect_uri'),
+        'session_id_hash'  => hash('sha256', (string) Session::getId()),
+      ]);
+    } catch (\Throwable $e) {
+      // silent
+    }
 
     $this->oidc->setRedirectURL(config('spid-laravel-trentino.redirect_uri'));
     $this->oidc->addScope(config('spid-laravel-trentino.scopes'));
@@ -40,7 +46,14 @@ class SpidTrentino
 
   public function redirectToLogin(): bool
   {
-    Log::info('[SPID] Redirecting to AAC Trentino login');
+    try {
+      Log::info('[SPID] Redirecting to AAC Trentino login', [
+        'session_id_hash' => hash('sha256', (string) Session::getId()),
+        'timestamp'       => now()->toIso8601String(),
+      ]);
+    } catch (\Throwable $e) {
+      // silent
+    }
     return $this->oidc->authenticate();
   }
 
@@ -49,6 +62,7 @@ class SpidTrentino
    */
   public function handleCallback(): void
   {
+    $this->logCallbackDiagnostics();
     Log::info('[SPID] Handling AAC callback');
     $this->oidc->authenticate();
 
@@ -111,6 +125,43 @@ class SpidTrentino
   public function getUserInfo(): ?object
   {
     return $this->oidc->requestUserInfo();
+  }
+
+  protected function logCallbackDiagnostics(): void
+  {
+    $hasState = false;
+    $hasCodeVerifier = false;
+
+    try {
+      $reflection = new \ReflectionClass($this->oidc);
+      if ($reflection->hasMethod('getState')) {
+        $method = $reflection->getMethod('getState');
+        $method->setAccessible(true);
+        $state = $method->invoke($this->oidc);
+        $hasState = ! empty($state);
+      }
+      if ($reflection->hasMethod('getCodeVerifier')) {
+        $method = $reflection->getMethod('getCodeVerifier');
+        $method->setAccessible(true);
+        $codeVerifier = $method->invoke($this->oidc);
+        $hasCodeVerifier = ! empty($codeVerifier);
+      }
+    } catch (\Throwable $e) {
+      Log::warning('[SPID] Could not read session diagnostics: ' . $e->getMessage());
+    }
+
+    try {
+      Log::info('[SPID] Callback diagnostic', [
+        'session_id_hash'      => hash('sha256', (string) Session::getId()),
+        'has_state'            => $hasState,
+        'has_code_verifier'    => $hasCodeVerifier,
+        'request_has_code'     => isset($_REQUEST['code']),
+        'request_has_state'    => isset($_REQUEST['state']),
+        'timestamp'            => now()->toIso8601String(),
+      ]);
+    } catch (\Throwable $e) {
+      // silent
+    }
   }
 
   protected function extractExpiry(): ?Carbon

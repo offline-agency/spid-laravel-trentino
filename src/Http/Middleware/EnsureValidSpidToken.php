@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OfflineAgency\SpidLaravelTrentino\Http\Middleware;
@@ -7,7 +8,6 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
-use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Checks that a SPID payload is still present in the session.
@@ -19,32 +19,32 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class EnsureValidSpidToken
 {
-  public function handle(Request $request, Closure $next)
-  {
-    /** SPID payload saved during login */
-    $token = Session::get('spid_user');
+    public function handle(Request $request, Closure $next)
+    {
+        /** SPID payload saved during login */
+        $token = Session::get('spid_user');
 
-    /** Optional: expiry timestamp, saved only if your flow provides it */
-    $expiresAt = Session::get('access_token_expires_at');   // may be null
+        /** Optional: expiry timestamp, saved only if your flow provides it */
+        $expiresAt = Session::get('access_token_expires_at');   // may be null
 
-    $isExpired = $expiresAt && now()->greaterThanOrEqualTo($expiresAt);
+        $isExpired = $expiresAt && now()->greaterThanOrEqualTo($expiresAt);
 
-    // Missing or expired token  ➜  force logout
-    if (! $token || $isExpired) {
-      Auth::logout();
-      Session::flush();
+        // Missing or expired token  ➜  force logout
+        if (! $token || $isExpired) {
+            Auth::logout();
+            Session::flush();
 
-      if ($request->expectsJson()) {
-        return response()->json(
-          ['message' => 'SPID token missing or expired.'],
-          419
-        );
-      }
+            if ($request->expectsJson()) {
+                return response()->json(
+                    ['message' => 'SPID token missing or expired.'],
+                    419
+                );
+            }
 
-      return redirect()->guest(route('spid.login'));
+            return redirect()->guest(route('spid.login'));
+        }
+
+        // Token looks valid – continue
+        return $next($request);
     }
-
-    // Token looks valid – continue
-    return $next($request);
-  }
 }

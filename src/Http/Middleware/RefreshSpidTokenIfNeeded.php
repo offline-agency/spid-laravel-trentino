@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OfflineAgency\SpidLaravelTrentino\Http\Middleware;
@@ -22,41 +23,41 @@ use OfflineAgency\SpidLaravelTrentino\SpidTrentino;
  */
 class RefreshSpidTokenIfNeeded
 {
-  /**
-   * @throws \Throwable – Let any non-OpenID exceptions bubble up (Laravel will handle them)
-   */
-  public function handle(Request $request, Closure $next)
-  {
-    try {
-      // Both values must exist to even attempt a refresh
-      if (Session::has('refresh_token') && Session::has('access_token_expires_at')) {
+    /**
+     * @throws \Throwable – Let any non-OpenID exceptions bubble up (Laravel will handle them)
+     */
+    public function handle(Request $request, Closure $next)
+    {
+        try {
+            // Both values must exist to even attempt a refresh
+            if (Session::has('refresh_token') && Session::has('access_token_expires_at')) {
 
-        /** @var string|\DateTimeInterface $rawExpiry */
-        $rawExpiry = Session::get('access_token_expires_at');
+                /** @var string|\DateTimeInterface $rawExpiry */
+                $rawExpiry = Session::get('access_token_expires_at');
 
-        $expiresAt = $rawExpiry instanceof Carbon
-          ? $rawExpiry
-          : Carbon::parse($rawExpiry);
+                $expiresAt = $rawExpiry instanceof Carbon
+                  ? $rawExpiry
+                  : Carbon::parse($rawExpiry);
 
-        // Refresh one minute before the actual expiry
-        if (now()->greaterThanOrEqualTo($expiresAt->copy()->subMinute())) {
-          /** @var SpidTrentino $spid */
-          $spid = app(SpidTrentino::class);
-          $spid->refreshAccessToken();
+                // Refresh one minute before the actual expiry
+                if (now()->greaterThanOrEqualTo($expiresAt->copy()->subMinute())) {
+                    /** @var SpidTrentino $spid */
+                    $spid = app(SpidTrentino::class);
+                    $spid->refreshAccessToken();
+                }
+            }
+        } catch (OpenIDConnectClientException $e) {
+            // Something went wrong while talking to AAC
+            Log::error('[SPID] Access-token refresh error: '.$e->getMessage());
+
+            // Purge session data so the next request triggers a full re-authentication
+            Session::forget([
+                'access_token',
+                'refresh_token',
+                'access_token_expires_at',
+            ]);
         }
-      }
-    } catch (OpenIDConnectClientException $e) {
-      // Something went wrong while talking to AAC
-      Log::error('[SPID] Access-token refresh error: '.$e->getMessage());
 
-      // Purge session data so the next request triggers a full re-authentication
-      Session::forget([
-        'access_token',
-        'refresh_token',
-        'access_token_expires_at',
-      ]);
+        return $next($request);
     }
-
-    return $next($request);
-  }
 }

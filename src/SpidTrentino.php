@@ -2,6 +2,8 @@
 
 namespace OfflineAgency\SpidLaravelTrentino;
 
+use Firebase\JWT\JWK;
+use Firebase\JWT\JWT;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
@@ -12,173 +14,174 @@ use Jumbojett\OpenIDConnectClient;
 use Jumbojett\OpenIDConnectClientException;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedIn;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedOut;
-use Firebase\JWT\JWT;
-use Firebase\JWT\JWK;
 
 class SpidTrentino
 {
-  protected OpenIDConnectClient $oidc;
+    protected OpenIDConnectClient $oidc;
 
-  public function __construct()
-  {
-    $this->oidc = new OpenIDConnectClient(
-      config('spid-laravel-trentino.provider_url'),
-      config('spid-laravel-trentino.client_id'),
-      config('spid-laravel-trentino.client_secret')
-    );
+    public function __construct()
+    {
+        $this->oidc = new OpenIDConnectClient(
+            config('spid-laravel-trentino.provider_url'),
+            config('spid-laravel-trentino.client_id'),
+            config('spid-laravel-trentino.client_secret')
+        );
 
-    Log::info(config('spid-laravel-trentino.provider_url'));
-    Log::info(config('spid-laravel-trentino.client_id'));
-    Log::info(config('spid-laravel-trentino.client_secret'));
-    Log::info(config('spid-laravel-trentino.redirect_uri'));
-    Log::info(config('spid-laravel-trentino.scopes'));
+        Log::info(config('spid-laravel-trentino.provider_url'));
+        Log::info(config('spid-laravel-trentino.client_id'));
+        Log::info(config('spid-laravel-trentino.client_secret'));
+        Log::info(config('spid-laravel-trentino.redirect_uri'));
+        Log::info(config('spid-laravel-trentino.scopes'));
 
-    $this->oidc->setRedirectURL(config('spid-laravel-trentino.redirect_uri'));
-    $this->oidc->addScope(config('spid-laravel-trentino.scopes'));
-    $this->oidc->setCodeChallengeMethod('S256');
-  }
-
-  public function redirectToLogin(): bool
-  {
-    Log::info('[SPID] Redirecting to AAC Trentino login');
-    return $this->oidc->authenticate();
-  }
-
-  /**
-   * @throws OpenIDConnectClientException
-   */
-  public function handleCallback(): void
-  {
-    Log::info('[SPID] Handling AAC callback');
-    $this->oidc->authenticate();
-
-    $accessToken  = $this->oidc->getAccessToken();
-    $refreshToken = $this->oidc->getRefreshToken();
-    $expiresAt    = $this->extractExpiry();
-    $userInfo     = $this->oidc->requestUserInfo();
-
-    // Validate ID token, if available
-    $this->validateIdToken();
-
-    $this->storeTokensInSession($accessToken, $refreshToken, $expiresAt);
-
-    $user = new SpidTrentinoUser((array) $userInfo);
-    Session::put('spid_trentino_user', $user->toArray());
-    Session::put('refresh_token', $refreshToken);
-    Session::put('access_token_expires_at', $expiresAt);
-    Log::debug('[SPID] User info stored in session', (array) $user);
-    Log::debug('[SPID] Refresh token stored in session', ['refresh_token' => $refreshToken]);
-    Log::debug('[SPID] Access token expires at', ['expires_at' => $expiresAt]);
-    Log::debug('[SPID] Access token stored in session', ['access_token' => $accessToken]);
-
-    Event::dispatch(new SpidTrentinoLoggedIn($user));
-  }
-
-  /**
-   * @throws OpenIDConnectClientException
-   */
-  public function refreshAccessToken(): void
-  {
-    Log::info('[SPID] Refreshing access token');
-
-    $refreshToken = Session::get('refresh_token');
-    if (! $refreshToken) {
-      Log::warning('[SPID] No refresh token in session');
-      return;
+        $this->oidc->setRedirectURL(config('spid-laravel-trentino.redirect_uri'));
+        $this->oidc->addScope(config('spid-laravel-trentino.scopes'));
+        $this->oidc->setCodeChallengeMethod('S256');
     }
 
-    $this->oidc->refreshToken($refreshToken);
+    public function redirectToLogin(): bool
+    {
+        Log::info('[SPID] Redirecting to AAC Trentino login');
 
-    $accessToken  = $this->oidc->getAccessToken();
-    $newRefresh   = $this->oidc->getRefreshToken() ?: $refreshToken;
-    $expiresAt    = $this->extractExpiry();
-
-    $this->storeTokensInSession($accessToken, $newRefresh, $expiresAt);
-  }
-
-  public function logout(): void
-  {
-    $user = new SpidTrentinoUser(Session::get('spid_trentino_user', []));
-
-    Session::flush();
-    Auth::logout();
-
-    if ($user->fiscalNumber) {
-      Event::dispatch(new SpidTrentinoLoggedOut($user));
-    }
-  }
-
-  public function getUserInfo(): ?object
-  {
-    return $this->oidc->requestUserInfo();
-  }
-
-  protected function extractExpiry(): ?Carbon
-  {
-    if (! method_exists($this->oidc, 'getTokenResponse')) {
-      return null;
+        return $this->oidc->authenticate();
     }
 
-    $tokenResponse = $this->oidc->getTokenResponse();
-    if (is_array($tokenResponse) && isset($tokenResponse['expires_in'])) {
-      return Carbon::now()->addSeconds((int) $tokenResponse['expires_in']);
+    /**
+     * @throws OpenIDConnectClientException
+     */
+    public function handleCallback(): void
+    {
+        Log::info('[SPID] Handling AAC callback');
+        $this->oidc->authenticate();
+
+        $accessToken = $this->oidc->getAccessToken();
+        $refreshToken = $this->oidc->getRefreshToken();
+        $expiresAt = $this->extractExpiry();
+        $userInfo = $this->oidc->requestUserInfo();
+
+        // Validate ID token, if available
+        $this->validateIdToken();
+
+        $this->storeTokensInSession($accessToken, $refreshToken, $expiresAt);
+
+        $user = new SpidTrentinoUser((array) $userInfo);
+        Session::put('spid_trentino_user', $user->toArray());
+        Session::put('refresh_token', $refreshToken);
+        Session::put('access_token_expires_at', $expiresAt);
+        Log::debug('[SPID] User info stored in session', (array) $user);
+        Log::debug('[SPID] Refresh token stored in session', ['refresh_token' => $refreshToken]);
+        Log::debug('[SPID] Access token expires at', ['expires_at' => $expiresAt]);
+        Log::debug('[SPID] Access token stored in session', ['access_token' => $accessToken]);
+
+        Event::dispatch(new SpidTrentinoLoggedIn($user));
     }
 
-    return null;
-  }
+    /**
+     * @throws OpenIDConnectClientException
+     */
+    public function refreshAccessToken(): void
+    {
+        Log::info('[SPID] Refreshing access token');
 
-  protected function storeTokensInSession(
-    string  $accessToken,
-    ?string $refreshToken,
-    ?Carbon $expiresAt
-  ): void {
-    Session::put('access_token', $accessToken);
+        $refreshToken = Session::get('refresh_token');
+        if (! $refreshToken) {
+            Log::warning('[SPID] No refresh token in session');
 
-    if ($refreshToken !== null) {
-      Session::put('refresh_token', $refreshToken);
+            return;
+        }
+
+        $this->oidc->refreshToken($refreshToken);
+
+        $accessToken = $this->oidc->getAccessToken();
+        $newRefresh = $this->oidc->getRefreshToken() ?: $refreshToken;
+        $expiresAt = $this->extractExpiry();
+
+        $this->storeTokensInSession($accessToken, $newRefresh, $expiresAt);
     }
 
-    if ($expiresAt !== null) {
-      Session::put('access_token_expires_at', $expiresAt);
-    } else {
-      Session::forget('access_token_expires_at');
-    }
-  }
+    public function logout(): void
+    {
+        $user = new SpidTrentinoUser(Session::get('spid_trentino_user', []));
 
-  /**
-   * Validates the ID token returned by AAC (if present).
-   *
-   * @throws \UnexpectedValueException if the token is invalid
-   */
-  protected function validateIdToken(): void
-  {
-    if (! method_exists($this->oidc, 'getTokenResponse')) {
-      return;
+        Session::flush();
+        Auth::logout();
+
+        if ($user->fiscalNumber) {
+            Event::dispatch(new SpidTrentinoLoggedOut($user));
+        }
     }
 
-    $response = $this->oidc->getTokenResponse();
-    if (! is_array($response) || ! isset($response['id_token'])) {
-      Log::warning('[SPID] No ID token found to validate');
-      return;
+    public function getUserInfo(): ?object
+    {
+        return $this->oidc->requestUserInfo();
     }
 
-    $idToken = $response['id_token'];
+    protected function extractExpiry(): ?Carbon
+    {
+        if (! method_exists($this->oidc, 'getTokenResponse')) {
+            return null;
+        }
 
-    // Discover JWKS URI from provider base URL
-    $jwksUri = rtrim(config('spid-laravel-trentino.provider_url'), '/') . '/.well-known/jwks.json';
-    $jwks = Http::get($jwksUri)->json();
+        $tokenResponse = $this->oidc->getTokenResponse();
+        if (is_array($tokenResponse) && isset($tokenResponse['expires_in'])) {
+            return Carbon::now()->addSeconds((int) $tokenResponse['expires_in']);
+        }
 
-    if (! isset($jwks['keys'])) {
-      Log::error('[SPID] Unable to fetch JWKS from AAC');
-      throw new \UnexpectedValueException('Invalid JWKS response');
+        return null;
     }
 
-    try {
-      $decoded = JWT::decode($idToken, JWK::parseKeySet($jwks));
-      Log::debug('[SPID] ID token successfully validated', (array) $decoded);
-    } catch (\Throwable $e) {
-      Log::error('[SPID] ID token validation failed: ' . $e->getMessage());
-      throw new \UnexpectedValueException('Invalid ID token: ' . $e->getMessage(), 0, $e);
+    protected function storeTokensInSession(
+        string $accessToken,
+        ?string $refreshToken,
+        ?Carbon $expiresAt
+    ): void {
+        Session::put('access_token', $accessToken);
+
+        if ($refreshToken !== null) {
+            Session::put('refresh_token', $refreshToken);
+        }
+
+        if ($expiresAt !== null) {
+            Session::put('access_token_expires_at', $expiresAt);
+        } else {
+            Session::forget('access_token_expires_at');
+        }
     }
-  }
+
+    /**
+     * Validates the ID token returned by AAC (if present).
+     *
+     * @throws \UnexpectedValueException if the token is invalid
+     */
+    protected function validateIdToken(): void
+    {
+        if (! method_exists($this->oidc, 'getTokenResponse')) {
+            return;
+        }
+
+        $response = $this->oidc->getTokenResponse();
+        if (! is_array($response) || ! isset($response['id_token'])) {
+            Log::warning('[SPID] No ID token found to validate');
+
+            return;
+        }
+
+        $idToken = $response['id_token'];
+
+        // Discover JWKS URI from provider base URL
+        $jwksUri = rtrim(config('spid-laravel-trentino.provider_url'), '/').'/.well-known/jwks.json';
+        $jwks = Http::get($jwksUri)->json();
+
+        if (! isset($jwks['keys'])) {
+            Log::error('[SPID] Unable to fetch JWKS from AAC');
+            throw new \UnexpectedValueException('Invalid JWKS response');
+        }
+
+        try {
+            $decoded = JWT::decode($idToken, JWK::parseKeySet($jwks));
+            Log::debug('[SPID] ID token successfully validated', (array) $decoded);
+        } catch (\Throwable $e) {
+            Log::error('[SPID] ID token validation failed: '.$e->getMessage());
+            throw new \UnexpectedValueException('Invalid ID token: '.$e->getMessage(), 0, $e);
+        }
+    }
 }

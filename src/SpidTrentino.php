@@ -6,45 +6,30 @@ namespace OfflineAgency\SpidLaravelTrentino;
 
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
-use Jumbojett\OpenIDConnectClient;
 use Jumbojett\OpenIDConnectClientException;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedIn;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedOut;
+use OfflineAgency\SpidLaravelTrentino\OpenIdConnect\LaravelOpenIDConnectClient;
 
 class SpidTrentino
 {
-    protected OpenIDConnectClient $oidc;
+    public function __construct(private readonly LaravelOpenIDConnectClient $oidc) {}
 
-    public function __construct()
-    {
-        $this->oidc = new OpenIDConnectClient(
-            config('spid-laravel-trentino.provider_url'),
-            config('spid-laravel-trentino.client_id'),
-            config('spid-laravel-trentino.client_secret')
-        );
-
-        Log::info(config('spid-laravel-trentino.provider_url'));
-        Log::info(config('spid-laravel-trentino.client_id'));
-        Log::info(config('spid-laravel-trentino.client_secret'));
-        Log::info(config('spid-laravel-trentino.redirect_uri'));
-        Log::info(config('spid-laravel-trentino.scopes'));
-
-        $this->oidc->setRedirectURL(config('spid-laravel-trentino.redirect_uri'));
-        $this->oidc->addScope(config('spid-laravel-trentino.scopes'));
-        $this->oidc->setCodeChallengeMethod('S256');
-    }
-
-    public function redirectToLogin(): bool
+    /**
+     * @throws OpenIDConnectClientException
+     */
+    public function redirectToLogin(): RedirectResponse
     {
         Log::info('[SPID] Redirecting to AAC Trentino login');
 
-        return $this->oidc->authenticate();
+        return $this->oidc->authorizationRedirect();
     }
 
     /**

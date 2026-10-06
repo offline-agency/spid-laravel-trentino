@@ -39,6 +39,9 @@ trait SpidAuthenticatesUsers
             throw new LogicException("The user model [{$userModel}] must implement Authenticatable.");
         }
 
+        // Set explicitly: firstOrNew() drops it when the model does not list it in $fillable.
+        $user->setAttribute('fiscal_code', $spidUser->getFiscalNumber());
+
         $user->fill([
             'name' => $spidUser->getName(),
             'surname' => $spidUser->getSurname(),

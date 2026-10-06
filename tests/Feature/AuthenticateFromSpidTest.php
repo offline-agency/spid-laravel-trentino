@@ -10,6 +10,7 @@ use OfflineAgency\SpidLaravelTrentino\SpidTrentinoServiceProvider;
 use OfflineAgency\SpidLaravelTrentino\Testing\MockOpenIDConnectClient;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\NotAuthenticatable;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\User;
+use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\UserWithoutFiscalCodeFillable;
 use OfflineAgency\SpidLaravelTrentino\Traits\SpidAuthenticatesUsers;
 
 mutates(SpidAuthenticatesUsers::class, SpidAuthController::class);
@@ -45,6 +46,17 @@ it('updates the same user on later logins', function () {
 
     expect(User::query()->count())->toBe(1)
         ->and(User::query()->sole()->surname)->toBe('Bianchi');
+});
+
+it('stores the fiscal code even when the model does not list it in $fillable', function () {
+    config()->set('auth.providers.users.model', UserWithoutFiscalCodeFillable::class);
+
+    loginWithSpid();
+    auth()->logout();
+    loginWithSpid();
+
+    expect(User::query()->count())->toBe(1)
+        ->and(User::query()->sole()->fiscal_code)->toBe(MockOpenIDConnectClient::FISCAL_CODE);
 });
 
 it('does not take over an email that belongs to another account', function () {

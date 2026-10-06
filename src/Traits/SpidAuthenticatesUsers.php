@@ -7,6 +7,7 @@ namespace OfflineAgency\SpidLaravelTrentino\Traits;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoUser;
@@ -65,18 +66,18 @@ trait SpidAuthenticatesUsers
      * -------------------------------------------------------- */
     protected function redirectTo(): string
     {
-        // 1. override da config
-        if ($path = config('spid.redirect_to')) {
-            return $path;
+        $configured = Config::get('spid-laravel-trentino.redirect_to');
+
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
         }
 
-        // 2. logica custom (es. admin)
         $user = Auth::user();
-        if ($user && method_exists($user, 'hasRole') && $user->hasRole('admin')) {
+
+        if ($user !== null && method_exists($user, 'hasRole') && $user->hasRole('admin')) {
             return '/admin/dashboard';
         }
 
-        // 3. fallback
         return '/';
     }
 }

@@ -6,6 +6,8 @@ use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\AdminUser;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\User;
 use OfflineAgency\SpidLaravelTrentino\Traits\SpidAuthenticatesUsers;
 
+mutates(SpidAuthenticatesUsers::class);
+
 function postLoginTarget(): string
 {
     return (new class

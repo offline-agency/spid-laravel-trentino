@@ -8,6 +8,8 @@ use OfflineAgency\SpidLaravelTrentino\Http\Middleware\EnsureValidSpidToken;
 use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\User;
 
+mutates(EnsureValidSpidToken::class);
+
 beforeEach(function () {
     Route::middleware(['web', EnsureValidSpidToken::class])->get('/protected', fn () => 'ok');
     $this->freezeTime();
@@ -47,6 +49,15 @@ it('redirects to the SPID login and ends the session when it is invalid', functi
     'expired (legacy Carbon instance)' => fn () => validSpidSession([SessionKeys::ACCESS_TOKEN_EXPIRES_AT => Carbon::now()->subMinute()]),
     'unparseable expiry' => fn () => validSpidSession([SessionKeys::ACCESS_TOKEN_EXPIRES_AT => 'not-a-date']),
 ]);
+
+it('rotates the CSRF token when it ends the session', function () {
+    session()->start();
+    $before = session()->token();
+
+    $this->get('/protected');
+
+    expect(session()->token())->not->toBe($before);
+});
 
 it('answers 419 JSON to API clients when the session is invalid', function () {
     $this->getJson('/protected')

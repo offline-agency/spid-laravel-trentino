@@ -6,6 +6,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Http;
@@ -235,6 +236,37 @@ it('sends JSON bodies as JSON and exposes the response content type', function (
 
     Http::assertSent(fn ($request) => $request->hasHeader('Content-Type', 'application/json')
         && $request->hasHeader('Accept', 'application/json'));
+});
+
+it('never caches token requests or authenticated requests', function (?string $body, array $headers) {
+    Http::fake(['https://aac.test/endpoint' => Http::sequence()->push(['n' => 1])->push(['n' => 2])]);
+    $client = new class(FakeAacProvider::ISSUER, FakeAacProvider::CLIENT_ID) extends LaravelOpenIDConnectClient
+    {
+        /** @param array<int, string> $headers */
+        public function fetch(?string $body, array $headers): string
+        {
+            return $this->fetchURL('https://aac.test/endpoint', $body, $headers);
+        }
+    };
+
+    expect($client->fetch($body, $headers))->toBe('{"n":1}')
+        ->and($client->fetch($body, $headers))->toBe('{"n":2}');
+})->with([
+    'public-client token POST without headers' => ['grant_type=refresh_token', []],
+    'userinfo GET with bearer token' => [null, ['Authorization: Bearer x']],
+]);
+
+it('fails when a redirect exception carries a non-redirect response', function () {
+    $client = new class(FakeAacProvider::ISSUER, FakeAacProvider::CLIENT_ID) extends LaravelOpenIDConnectClient
+    {
+        public function authenticateWith(array $parameters): bool
+        {
+            throw new HttpResponseException(new Response('not a redirect'));
+        }
+    };
+
+    expect(fn () => $client->authorizationRedirect())
+        ->toThrow(OpenIDConnectClientException::class, 'The authorization request did not produce a redirect.');
 });
 
 it('never starts or commits a native PHP session', function () {

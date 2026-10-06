@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Session;
 use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\Support\SessionExpiry;
 
+mutates(SessionExpiry::class);
+
 beforeEach(fn () => $this->travelTo(CarbonImmutable::parse('2026-01-01T12:00:00+00:00')));
 
 it('stores the expiry as an ISO-8601 string and forgets it when null', function () {

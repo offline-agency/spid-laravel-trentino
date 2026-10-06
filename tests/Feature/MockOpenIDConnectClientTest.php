@@ -29,6 +29,7 @@ it('fakes refresh and userinfo', function () {
 
     expect($mock->refreshToken('r')->access_token)->toBe('mock-refreshed-access-token')
         ->and($mock->getIdToken())->toBe(MockOpenIDConnectClient::ID_TOKEN)
+        ->and($mock->getRefreshToken())->toBe(MockOpenIDConnectClient::REFRESH_TOKEN)
         ->and($mock->requestUserInfo('family_name'))->toBe('Rossi')
         ->and($mock->requestUserInfo('missing'))->toBeNull();
 

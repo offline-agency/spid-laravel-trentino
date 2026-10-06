@@ -6,9 +6,32 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedOut;
+use OfflineAgency\SpidLaravelTrentino\Http\Controllers\SpidAuthController;
 use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\User;
 use OfflineAgency\SpidLaravelTrentino\Tests\Support\FakeAacProvider;
+use OfflineAgency\SpidLaravelTrentino\Traits\SpidAuthenticatesUsers;
+
+mutates(SpidAuthController::class, SpidAuthenticatesUsers::class);
+
+it('issues a new session id at login to prevent session fixation', function () {
+    FakeAacProvider::fake();
+    FakeAacProvider::startAuthorization();
+    $before = session()->getId();
+
+    $this->get('/spid/callback?code=auth-code&state='.FakeAacProvider::STATE);
+
+    expect(session()->getId())->not->toBe($before);
+});
+
+it('rotates the CSRF token at logout', function () {
+    session()->put(SessionKeys::USER, FakeAacProvider::userInfo());
+    $before = session()->token();
+
+    $this->post('/spid/logout');
+
+    expect(session()->token())->not->toBe($before);
+});
 
 it('redirects the login route to the AAC authorization endpoint', function () {
     FakeAacProvider::fake();

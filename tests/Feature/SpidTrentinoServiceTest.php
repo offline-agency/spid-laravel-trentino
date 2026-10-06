@@ -89,15 +89,25 @@ it('refuses a userinfo without fiscal code', function (array $userInfo) {
     'empty fiscal code' => [['enti-codicefiscale' => ['fiscalCode' => '']]],
 ]);
 
-it('refuses a userinfo that is not a JSON object', function () {
+it('refuses a userinfo that is not a JSON object', function (string $body) {
     Http::fake([
         FakeAacProvider::discoveryUrl() => Http::response(FakeAacProvider::discovery()),
         FakeAacProvider::ISSUER.'/jwk' => Http::response(FakeAacProvider::jwks()),
         FakeAacProvider::ISSUER.'/oauth/token' => Http::response(FakeAacProvider::tokenResponse()),
-        FakeAacProvider::ISSUER.'/userinfo*' => Http::response('[]'),
+        FakeAacProvider::ISSUER.'/userinfo*' => Http::response($body),
     ]);
 
-    expect(fn () => app(SpidTrentino::class)->handleCallback())->toThrow(OpenIDConnectClientException::class);
+    expect(fn () => app(SpidTrentino::class)->handleCallback())
+        ->toThrow(OpenIDConnectClientException::class, 'AAC did not return a fiscal code for the authenticated user.');
+})->with(['list' => '[]', 'string' => '"text"']);
+
+it('forgets a refresh token left from a previous login when AAC sends none', function () {
+    FakeAacProvider::fake(['refresh_token' => null]);
+    Session::put(SessionKeys::REFRESH_TOKEN, 'stale-refresh');
+
+    app(SpidTrentino::class)->handleCallback();
+
+    expect(Session::has(SessionKeys::REFRESH_TOKEN))->toBeFalse();
 });
 
 it('never logs tokens, credentials or personal data', function () {

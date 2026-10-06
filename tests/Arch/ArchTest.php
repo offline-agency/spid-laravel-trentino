@@ -29,3 +29,12 @@ test('src never touches $_SESSION directly', function () {
 
     expect($offenders)->toBe([]);
 });
+
+arch('src depends on illuminate components, not on the framework')
+    ->expect('OfflineAgency\SpidLaravelTrentino')
+    ->not->toUse([
+        'Illuminate\Foundation',
+        'app', 'auth', 'config', 'config_path', 'database_path', 'event', 'logger',
+        'now', 'redirect', 'request', 'resource_path', 'response', 'route', 'session', 'url', '__',
+    ])
+    ->ignoring('OfflineAgency\SpidLaravelTrentino\Tests');

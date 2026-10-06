@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use OfflineAgency\SpidLaravelTrentino\Http\Controllers\SpidAuthController;
 use OfflineAgency\SpidLaravelTrentino\OpenIdConnect\LaravelOpenIDConnectClient;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoServiceProvider;
 use OfflineAgency\SpidLaravelTrentino\Testing\MockOpenIDConnectClient;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\NotAuthenticatable;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\User;
+use OfflineAgency\SpidLaravelTrentino\Traits\SpidAuthenticatesUsers;
+
+mutates(SpidAuthenticatesUsers::class, SpidAuthController::class);
 
 function loginWithSpid(array $claims = []): void
 {

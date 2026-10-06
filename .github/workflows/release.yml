@@ -1,7 +1,10 @@
 name: Release
 
 on:
-  pull_request:
+  # pull_request_target so merged PRs from forks also get a write token. Safe here:
+  # the job runs only after the merge and checks out merge_commit_sha (already on
+  # master); code from the PR head is never executed.
+  pull_request_target:
     types: [closed]
     branches: [master]
 

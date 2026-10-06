@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace OfflineAgency\SpidLaravelTrentino\Traits;
 
 use Illuminate\Contracts\Auth\Authenticatable;

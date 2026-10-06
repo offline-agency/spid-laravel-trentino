@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace OfflineAgency\SpidLaravelTrentino\Testing;
 
 use Jumbojett\OpenIDConnectClient;
@@ -26,7 +28,7 @@ class MockOpenIDConnectClient extends OpenIDConnectClient
         return 'mock-id-token';
     }
 
-    public function requestUserInfo(): object
+    public function requestUserInfo(?string $attribute = null): object
     {
         return (object) [
             'sub' => 'u_test123',

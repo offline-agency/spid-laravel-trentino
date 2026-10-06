@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Support\Facades\Route;
 use OfflineAgency\SpidLaravelTrentino\Http\Controllers\SpidAuthController;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentino;

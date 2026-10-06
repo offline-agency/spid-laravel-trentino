@@ -18,7 +18,7 @@ use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 /**
  * jumbojett/openid-connect-php adapted to Laravel.
  *
- * - State, nonce and PKCE verifier are kept in the Laravel session, never in $_SESSION.
+ * - State, nonce and PKCE verifier are kept in the Laravel session, never in the native PHP session.
  * - Redirects throw an HttpResponseException instead of calling header() and exit.
  * - HTTP goes through the Laravel HTTP client; the discovery document and the
  *   JWKS are cached for $cacheTtl seconds.

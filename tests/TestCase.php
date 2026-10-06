@@ -8,11 +8,13 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoFacade;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoServiceProvider;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\User;
+use Orchestra\Testbench\Concerns\WithLaravelMigrations;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
 {
     use RefreshDatabase;
+    use WithLaravelMigrations;
 
     protected function getPackageProviders($app): array
     {
@@ -28,6 +30,7 @@ abstract class TestCase extends Orchestra
     {
         $config = $app['config'];
 
+        $config->set('app.key', 'base64:'.base64_encode(str_repeat('k', 32)));
         $config->set('database.default', 'testing');
         $config->set('cache.default', 'array');
         $config->set('session.driver', 'array');
@@ -37,10 +40,5 @@ abstract class TestCase extends Orchestra
         $config->set('spid-laravel-trentino.client_secret', 'test-secret');
         $config->set('spid-laravel-trentino.provider_url', 'https://aac.test');
         $config->set('spid-laravel-trentino.redirect_uri', 'https://app.test/spid/callback');
-    }
-
-    protected function defineDatabaseMigrations(): void
-    {
-        $this->loadLaravelMigrations();
     }
 }

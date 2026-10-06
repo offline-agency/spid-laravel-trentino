@@ -6,10 +6,14 @@ namespace OfflineAgency\SpidLaravelTrentino\Traits;
 
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
+use Jumbojett\OpenIDConnectClientException;
+use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoUser;
 
 trait SpidAuthenticatesUsers
@@ -59,6 +63,17 @@ trait SpidAuthenticatesUsers
         Auth::logout();
         Session::flush();
         Log::debug('[SPID] logout eseguito');
+    }
+
+    /**
+     * Logs the failure and sends the user to error_redirect_to with a flash message.
+     */
+    protected function spidLoginFailed(OpenIDConnectClientException $exception): RedirectResponse
+    {
+        Log::error('[SPID] Authentication failed', ['exception' => $exception]);
+
+        return Redirect::to(Config::string('spid-laravel-trentino.error_redirect_to'))
+            ->with(SessionKeys::ERROR, 'SPID authentication failed. Please try again.');
     }
 
     /* -------------------------------------------------------- *

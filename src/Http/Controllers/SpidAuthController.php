@@ -18,6 +18,15 @@ class SpidAuthController extends Controller
 {
     use SpidAuthenticatesUsers;
 
+    public function login(SpidTrentino $spid): RedirectResponse
+    {
+        try {
+            return $spid->redirectToLogin();
+        } catch (OpenIDConnectClientException $exception) {
+            return $this->spidLoginFailed($exception);
+        }
+    }
+
     /* ---------------- callback AAC ---------------- */
     /**
      * @throws OpenIDConnectClientException

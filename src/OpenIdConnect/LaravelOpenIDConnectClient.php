@@ -247,6 +247,12 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
             throw new OpenIDConnectClientException("AAC returned HTTP {$this->responseCode} for {$url}");
         }
 
+        // A maintenance or captive-portal page answering 200 must not be cached
+        // (it would block every login for cache_ttl seconds) nor reach the parent.
+        if ($isMetadata && ! $this->isJsonDocument($body)) {
+            throw new OpenIDConnectClientException("AAC returned an invalid document for {$url}");
+        }
+
         if ($isMetadata && $this->cacheTtl > 0) {
             Cache::put($cacheKey, $body, $this->cacheTtl);
         }
@@ -300,6 +306,13 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
         }
 
         return $parsed;
+    }
+
+    private function isJsonDocument(string $body): bool
+    {
+        $document = json_decode($body);
+
+        return $document instanceof \stdClass && get_object_vars($document) !== [];
     }
 
     private function contentTypeFor(string $body): string

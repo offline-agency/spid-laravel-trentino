@@ -231,6 +231,21 @@ it('reports AAC metadata errors as OpenIDConnectClientException and does not cac
     expect(oidcClient()->authorizationRedirect())->toBeInstanceOf(RedirectResponse::class);
 });
 
+it('neither caches nor trusts a 200 metadata response that is not a JSON document', function (string $body) {
+    Http::fake([FakeAacProvider::discoveryUrl() => Http::sequence()
+        ->push($body, 200, ['Content-Type' => 'text/html'])
+        ->push(FakeAacProvider::discovery())]);
+
+    expect(fn () => oidcClient()->authorizationRedirect())
+        ->toThrow(OpenIDConnectClientException::class, 'AAC returned an invalid document for '.FakeAacProvider::discoveryUrl());
+    expect(oidcClient()->authorizationRedirect())->toBeInstanceOf(RedirectResponse::class);
+})->with([
+    'maintenance page' => '<html>maintenance</html>',
+    'empty object' => '{}',
+    'JSON list' => '[]',
+    'empty body' => '',
+]);
+
 it('reports connection failures as OpenIDConnectClientException', function () {
     Http::fake(fn () => throw new ConnectionException('Connection refused'));
 

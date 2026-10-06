@@ -247,7 +247,7 @@ Event::listen(function (SpidTrentinoLoggedIn $event) {
 ## Tokens, verification and errors
 
 - **ID token verification** is done by `jumbojett/openid-connect-php` inside the code flow: the signature is checked with the keys published at the `jwks_uri` of the discovery document, and so are the `iss`, `aud`, `sub`, `nonce`, `exp`, `nbf` and `at_hash` claims. The package adds stricter checks: tokens without `exp`, or whose `aud` does not contain the client id, are rejected.
-- **Caching**: the discovery document and the JWKS are cached for `cache_ttl` seconds. If AAC rotates its signing key, the cached JWKS is dropped and fetched again once.
+- **Caching**: the discovery document and the JWKS are cached for `cache_ttl` seconds (responses that are not JSON documents are never cached). If an ID token is signed with a key id that the cached JWKS does not contain (AAC rotated its keys), the cached JWKS is dropped and fetched again once.
 - **Refresh**: `spid.refresh` refreshes the access token within 60 seconds of expiry. If AAC refuses the refresh or cannot be reached, the tokens are forgotten and `spid.valid` sends the user back to the login.
 - **Failures**: when the login fails (AAC unreachable, user cancelled, invalid ID token, no fiscal code returned), the user is redirected to `error_redirect_to` with a message flashed under `SessionKeys::ERROR`, and the exception is logged:
 

@@ -41,6 +41,10 @@ class SpidTrentinoServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../resources/views' => $this->app->resourcePath('views/vendor/spid-laravel-trentino'),
             ], 'spid-laravel-trentino-views');
+
+            $this->publishesMigrations([
+                __DIR__.'/../database/migrations' => $this->app->databasePath('migrations'),
+            ], 'spid-laravel-trentino-migrations');
         }
     }
 

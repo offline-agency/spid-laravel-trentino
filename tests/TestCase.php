@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OfflineAgency\SpidLaravelTrentino\Tests;
 
+use Illuminate\Database\Migrations\Migrator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoFacade;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoServiceProvider;
@@ -40,5 +41,12 @@ abstract class TestCase extends Orchestra
         $config->set('spid-laravel-trentino.client_secret', 'test-secret');
         $config->set('spid-laravel-trentino.provider_url', 'https://aac.test');
         $config->set('spid-laravel-trentino.redirect_uri', 'https://app.test/spid/callback');
+
+        // The package only publishes its migration; tests run it as part of
+        // RefreshDatabase's migrate:fresh (Testbench under Pest skips
+        // defineDatabaseMigrations()).
+        $app->resolving('migrator', function (Migrator $migrator): void {
+            $migrator->path(__DIR__.'/../database/migrations');
+        });
     }
 }

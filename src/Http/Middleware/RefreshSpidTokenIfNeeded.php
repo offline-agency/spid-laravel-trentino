@@ -6,56 +6,42 @@ namespace OfflineAgency\SpidLaravelTrentino\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Jumbojett\OpenIDConnectClientException;
+use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentino;
+use OfflineAgency\SpidLaravelTrentino\Support\SessionExpiry;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Transparently refresh the SPID access-token if it is close to expiry.
- *
- * Logic:
- *   • If `refresh_token` or `access_token_expires_at` are **missing** ➜ do nothing.
- *   • If the expiry timestamp is within the next minute ➜ call SpidTrentino::refreshAccessToken().
- *   • On failure we delete the session tokens and continue; subsequent requests
- *     will be caught by the EnsureValidSpidToken middleware.
+ * Refreshes the access token when it expires within a minute. When the
+ * refresh fails the tokens are forgotten, so spid.valid (placed after this
+ * middleware) ends the session.
  */
 class RefreshSpidTokenIfNeeded
 {
+    private const int REFRESH_WINDOW_SECONDS = 60;
+
+    public function __construct(private readonly SpidTrentino $spid) {}
+
     /**
-     * @throws \Throwable – Let any non-OpenID exceptions bubble up (Laravel will handle them)
+     * @param  Closure(Request): Response  $next
      */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next): Response
     {
-        try {
-            // Both values must exist to even attempt a refresh
-            if (Session::has('refresh_token') && Session::has('access_token_expires_at')) {
+        if (Session::has(SessionKeys::REFRESH_TOKEN) && SessionExpiry::expiresWithin(self::REFRESH_WINDOW_SECONDS)) {
+            try {
+                $this->spid->refreshAccessToken();
+            } catch (OpenIDConnectClientException $exception) {
+                Log::warning('[SPID] Access token refresh failed', ['error' => $exception->getMessage()]);
 
-                /** @var string|\DateTimeInterface $rawExpiry */
-                $rawExpiry = Session::get('access_token_expires_at');
-
-                $expiresAt = $rawExpiry instanceof Carbon
-                  ? $rawExpiry
-                  : Carbon::parse($rawExpiry);
-
-                // Refresh one minute before the actual expiry
-                if (now()->greaterThanOrEqualTo($expiresAt->copy()->subMinute())) {
-                    /** @var SpidTrentino $spid */
-                    $spid = app(SpidTrentino::class);
-                    $spid->refreshAccessToken();
-                }
+                Session::forget([
+                    SessionKeys::ACCESS_TOKEN,
+                    SessionKeys::REFRESH_TOKEN,
+                    SessionKeys::ACCESS_TOKEN_EXPIRES_AT,
+                ]);
             }
-        } catch (OpenIDConnectClientException $e) {
-            // Something went wrong while talking to AAC
-            Log::error('[SPID] Access-token refresh error: '.$e->getMessage());
-
-            // Purge session data so the next request triggers a full re-authentication
-            Session::forget([
-                'access_token',
-                'refresh_token',
-                'access_token_expires_at',
-            ]);
         }
 
         return $next($request);

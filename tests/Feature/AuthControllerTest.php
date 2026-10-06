@@ -88,6 +88,23 @@ it('redirects to the error page with a flash message when the callback fails', f
     'ID token for another client' => [['code' => 'auth-code', 'state' => FakeAacProvider::STATE], ['aud' => 'another-client']],
 ]);
 
+it('redirects to the error page when the AAC token endpoint fails', function (int $status, string $body) {
+    Http::fake([
+        FakeAacProvider::discoveryUrl() => Http::response(FakeAacProvider::discovery()),
+        FakeAacProvider::ISSUER.'/oauth/token' => Http::response($body, $status),
+    ]);
+    FakeAacProvider::startAuthorization();
+
+    $this->get('/spid/callback?code=auth-code&state='.FakeAacProvider::STATE)
+        ->assertRedirect('/')
+        ->assertSessionHas(SessionKeys::ERROR);
+
+    $this->assertGuest();
+})->with([
+    'gateway error page' => [502, '<html>Bad Gateway</html>'],
+    'invalid_grant' => [400, '{"error":"invalid_grant","error_description":"Code expired"}'],
+]);
+
 it('logs out through the service, dispatching the logout event', function () {
     Event::fake([SpidTrentinoLoggedOut::class]);
     $user = User::query()->forceCreate(['name' => 'Mario', 'email' => 'm@example.com', 'password' => 'x']);

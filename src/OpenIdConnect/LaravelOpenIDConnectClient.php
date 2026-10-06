@@ -163,6 +163,35 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
         return parent::verifyJWTClaims($claims, $accessToken);
     }
 
+    /**
+     * The parent assumes a well-formed token response; a gateway error page or
+     * a response without tokens would surface as a TypeError or a PHP warning.
+     *
+     * @param  array<int, string>  $headers
+     *
+     * @throws OpenIDConnectClientException
+     */
+    protected function requestTokens(string $code, array $headers = []): object
+    {
+        $response = parent::requestTokens($code, $headers);
+
+        if (! $response instanceof \stdClass) {
+            throw new OpenIDConnectClientException("AAC returned an invalid token response (HTTP {$this->responseCode}).");
+        }
+
+        if (isset($response->error)) {
+            return $response;
+        }
+
+        if (! isset($response->access_token, $response->id_token)
+            || ! is_string($response->access_token)
+            || ! is_string($response->id_token)) {
+            throw new OpenIDConnectClientException('AAC returned a token response without access_token or id_token.');
+        }
+
+        return $response;
+    }
+
     protected function startSession(): void
     {
         // The Laravel session is started by the StartSession middleware.

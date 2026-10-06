@@ -134,6 +134,24 @@ it('rejects ID tokens that fail verification', function (array $claims, string $
     'bad signature' => [[], 'attacker'],
 ]);
 
+it('rejects malformed token endpoint responses with an OpenIDConnectClientException', function (Closure $response) {
+    Http::fake([
+        FakeAacProvider::discoveryUrl() => Http::response(FakeAacProvider::discovery()),
+        FakeAacProvider::ISSUER.'/jwk' => Http::response(FakeAacProvider::jwks()),
+        FakeAacProvider::ISSUER.'/oauth/token' => $response(),
+    ]);
+    FakeAacProvider::startAuthorization();
+
+    expect(fn () => oidcClient()->authenticateWith(callbackParameters()))
+        ->toThrow(OpenIDConnectClientException::class);
+})->with([
+    'gateway error with HTML body' => fn () => fn () => Http::response('<html>Bad Gateway</html>', 502, ['Content-Type' => 'text/html']),
+    '200 with non-JSON body' => fn () => fn () => Http::response('not json', 200),
+    'JSON without access_token' => fn () => fn () => Http::response(FakeAacProvider::tokenResponse(['access_token' => null])),
+    'JSON without id_token' => fn () => fn () => Http::response(FakeAacProvider::tokenResponse(['id_token' => null])),
+    'non-string id_token' => fn () => fn () => Http::response(array_merge(FakeAacProvider::tokenResponse(), ['id_token' => ['x']])),
+]);
+
 it('accepts an aud array that contains the client id', function () {
     FakeAacProvider::fake(['id_token' => FakeAacProvider::idToken(['aud' => ['other', FakeAacProvider::CLIENT_ID]])]);
     FakeAacProvider::startAuthorization();

@@ -32,6 +32,7 @@ it('stores tokens, expiry and user, dispatches the login event and returns the u
     $user = app(SpidTrentino::class)->handleCallback();
 
     expect($user->getFiscalNumber())->toBe(FakeAacProvider::FISCAL_CODE)
+        ->and($user->getEmail())->toBe('mario.rossi@example.com')
         ->and(Session::get(SessionKeys::ACCESS_TOKEN))->toBe(FakeAacProvider::ACCESS_TOKEN)
         ->and(Session::get(SessionKeys::REFRESH_TOKEN))->toBe(FakeAacProvider::REFRESH_TOKEN)
         ->and(Session::get(SessionKeys::ACCESS_TOKEN_EXPIRES_AT))->toBe('2026-01-01T13:00:00+00:00')

@@ -5,24 +5,20 @@ declare(strict_types=1);
 namespace OfflineAgency\SpidLaravelTrentino;
 
 use Illuminate\Contracts\Support\Arrayable;
+use InvalidArgumentException;
 use JsonSerializable;
 use stdClass;
 
 /**
- * Data‑transfer object that mirrors the SPID Trentino identity response
- * and exposes strongly‑typed getters / setters plus Laravel‑style toArray().
+ * SPID identity returned by AAC Trentino's userinfo endpoint.
  *
- * You can instantiate the DTO directly with the payload:
- * ```php
- * $user = new SpidTrentinoUser($payload);     // $payload may be an array OR an stdClass
- * $user = SpidTrentinoUser::fromJson($json);  // convenience helpers also provided
- * ```
+ * Hydration is tolerant: claims of an unexpected type become '' (scalars) or
+ * [] (nested enti-* claims) instead of failing.
+ *
+ * @implements Arrayable<string, mixed>
  */
 class SpidTrentinoUser implements Arrayable, JsonSerializable
 {
-    // ───────────────────────────────────────────────────────────────
-    // Core scalar claims (pre‑initialized to avoid uninitialized‑typed‑property errors)
-    // ───────────────────────────────────────────────────────────────
     private string $sub = '';
 
     private string $zoneinfo = '';
@@ -39,81 +35,72 @@ class SpidTrentinoUser implements Arrayable, JsonSerializable
 
     private string $familyName = '';
 
-    // ───────────────────────────────────────────────────────────────
-    // Complex / nested claims (kept as associative arrays for brevity)
-    // ───────────────────────────────────────────────────────────────
+    private string $email = '';
+
+    /** @var array<array-key, mixed> */
     private array $entiIssuerSource = [];
 
+    /** @var array<array-key, mixed> */
     private array $entiAcr = [];
 
+    /** @var array<array-key, mixed> */
     private array $entiSpid = [];
 
+    /** @var array<array-key, mixed> */
     private array $entiCodiceFiscale = [];
 
-    // ───────────────────────────────────────────────────────────────
-    // Constructor – optional one‑shot hydration
-    // ───────────────────────────────────────────────────────────────
-
     /**
-     * @param  array|stdClass  $data  SPID payload (associative array or stdClass)
+     * @param  array<array-key, mixed>|stdClass  $data  userinfo payload
      */
     public function __construct(array|stdClass $data = [])
     {
-        if ($data !== []) {
-            // Ensure we have an array for uniform processing
-            if ($data instanceof stdClass) {
-                $data = json_decode(json_encode($data), true);
-            }
+        $data = self::toArrayRecursive($data);
 
-            // Scalar claims
-            $this->setSub($data['sub'] ?? '')
-                ->setZoneinfo($data['zoneinfo'] ?? '')
-                ->setPreferredUsername($data['preferred_username'] ?? '')
-                ->setLocale($data['locale'] ?? '')
-                ->setGivenName($data['given_name'] ?? '')
-                ->setRealm($data['realm'] ?? '')
-                ->setId($data['id'] ?? '')
-                ->setFamilyName($data['family_name'] ?? '')
-
-                // Nested claims
-                ->setEntiIssuerSource($data['enti-issuersource'] ?? [])
-                ->setEntiAcr($data['enti-acr'] ?? [])
-                ->setEntiSpid($data['enti-spid'] ?? [])
-                ->setEntiCodiceFiscale($data['enti-codicefiscale'] ?? []);
-        }
+        $this->setSub(self::stringClaim($data, 'sub'))
+            ->setZoneinfo(self::stringClaim($data, 'zoneinfo'))
+            ->setPreferredUsername(self::stringClaim($data, 'preferred_username'))
+            ->setLocale(self::stringClaim($data, 'locale'))
+            ->setGivenName(self::stringClaim($data, 'given_name'))
+            ->setRealm(self::stringClaim($data, 'realm'))
+            ->setId(self::stringClaim($data, 'id'))
+            ->setFamilyName(self::stringClaim($data, 'family_name'))
+            ->setEmail(self::stringClaim($data, 'email'))
+            ->setEntiIssuerSource(self::arrayClaim($data, 'enti-issuersource'))
+            ->setEntiAcr(self::arrayClaim($data, 'enti-acr'))
+            ->setEntiSpid(self::arrayClaim($data, 'enti-spid'))
+            ->setEntiCodiceFiscale(self::arrayClaim($data, 'enti-codicefiscale'));
     }
 
-    // ───────────────────────────────────────────────────────────────
-    // Statics - hydrators / factories (all delegate to the constructor)
-    // ───────────────────────────────────────────────────────────────
-
+    /**
+     * @param  array<array-key, mixed>  $data
+     */
     public static function fromArray(array $data): self
     {
         return new self($data);
     }
 
+    /**
+     * @throws InvalidArgumentException when $json is not a JSON object and $throwOnError is true
+     */
     public static function fromJson(string $json, bool $throwOnError = true): self
     {
-        $array = json_decode($json, true);
+        $data = json_decode($json, true);
 
-        if ($array === null && json_last_error() !== JSON_ERROR_NONE) {
-            if ($throwOnError) {
-                throw new \InvalidArgumentException('Invalid JSON supplied: '.json_last_error_msg());
-            }
-            $array = [];
+        if (is_array($data)) {
+            return new self($data);
         }
 
-        return new self($array);
+        if ($throwOnError) {
+            throw new InvalidArgumentException('Invalid SPID user JSON: '.(json_last_error() === JSON_ERROR_NONE ? 'not an object' : json_last_error_msg()));
+        }
+
+        return new self;
     }
 
     public static function fromStdClass(stdClass $object): self
     {
         return new self($object);
     }
-
-    // ───────────────────────────────────────────────────────────────
-    // Getters & Setters – scalar claims
-    // ───────────────────────────────────────────────────────────────
 
     public function getSub(): string
     {
@@ -211,69 +198,80 @@ class SpidTrentinoUser implements Arrayable, JsonSerializable
         return $this;
     }
 
-    // ───────────────────────────────────────────────────────────────
-    // Getters & Setters – nested/complex claims (arrays)
-    // ───────────────────────────────────────────────────────────────
+    public function getEmail(): string
+    {
+        return $this->email;
+    }
 
-    /** @return array{issuerSource?:string,id?:string} */
+    public function setEmail(string $email): self
+    {
+        $this->email = $email;
+
+        return $this;
+    }
+
+    /** @return array<array-key, mixed> */
     public function getEntiIssuerSource(): array
     {
         return $this->entiIssuerSource;
     }
 
+    /** @param array<array-key, mixed>|stdClass $entiIssuerSource */
     public function setEntiIssuerSource(array|stdClass $entiIssuerSource): self
     {
-        $this->entiIssuerSource = (array) $entiIssuerSource;
+        $this->entiIssuerSource = self::toArrayRecursive($entiIssuerSource);
 
         return $this;
     }
 
-    /** @return array{acr?:string,id?:string} */
+    /** @return array<array-key, mixed> */
     public function getEntiAcr(): array
     {
         return $this->entiAcr;
     }
 
+    /** @param array<array-key, mixed>|stdClass $entiAcr */
     public function setEntiAcr(array|stdClass $entiAcr): self
     {
-        $this->entiAcr = (array) $entiAcr;
+        $this->entiAcr = self::toArrayRecursive($entiAcr);
 
         return $this;
     }
 
-    /** @return array{isSpid?:string,spidCode?:string,id?:string} */
+    /** @return array<array-key, mixed> */
     public function getEntiSpid(): array
     {
         return $this->entiSpid;
     }
 
+    /** @param array<array-key, mixed>|stdClass $entiSpid */
     public function setEntiSpid(array|stdClass $entiSpid): self
     {
-        $this->entiSpid = (array) $entiSpid;
+        $this->entiSpid = self::toArrayRecursive($entiSpid);
 
         return $this;
     }
 
-    /** @return array{fiscalCode?:string,id?:string} */
+    /** @return array<array-key, mixed> */
     public function getEntiCodiceFiscale(): array
     {
         return $this->entiCodiceFiscale;
     }
 
+    /** @param array<array-key, mixed>|stdClass $entiCodiceFiscale */
     public function setEntiCodiceFiscale(array|stdClass $entiCodiceFiscale): self
     {
-        $this->entiCodiceFiscale = (array) $entiCodiceFiscale;
+        $this->entiCodiceFiscale = self::toArrayRecursive($entiCodiceFiscale);
 
         return $this;
     }
 
-    // ───────────────────────────────────────────────────────────────
-    // Derived helpers
-    // ───────────────────────────────────────────────────────────────
-
+    /**
+     * Fiscal number from enti-codicefiscale.fiscalCode (for example TINIT-RSSMRA80A01H501U).
+     */
     public function getFiscalNumber(): string
     {
-        return $this->entiCodiceFiscale['fiscalCode'] ?? '';
+        return self::stringClaim($this->entiCodiceFiscale, 'fiscalCode');
     }
 
     public function getName(): string
@@ -286,10 +284,9 @@ class SpidTrentinoUser implements Arrayable, JsonSerializable
         return $this->familyName;
     }
 
-    // ───────────────────────────────────────────────────────────────
-    // Arrayable / JsonSerializable contracts
-    // ───────────────────────────────────────────────────────────────
-
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [
@@ -299,6 +296,7 @@ class SpidTrentinoUser implements Arrayable, JsonSerializable
             'preferred_username' => $this->preferredUsername,
             'locale' => $this->locale,
             'given_name' => $this->givenName,
+            'email' => $this->email,
             'enti-acr' => $this->entiAcr,
             'enti-spid' => $this->entiSpid,
             'realm' => $this->realm,
@@ -308,8 +306,43 @@ class SpidTrentinoUser implements Arrayable, JsonSerializable
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function jsonSerialize(): array
     {
         return $this->toArray();
+    }
+
+    /**
+     * @param  array<array-key, mixed>|stdClass  $value
+     * @return array<array-key, mixed>
+     */
+    private static function toArrayRecursive(array|stdClass $value): array
+    {
+        $decoded = json_decode((string) json_encode($value), true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $data
+     */
+    private static function stringClaim(array $data, string $key): string
+    {
+        $value = $data[$key] ?? null;
+
+        return is_string($value) || is_int($value) || is_float($value) ? (string) $value : '';
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $data
+     * @return array<array-key, mixed>
+     */
+    private static function arrayClaim(array $data, string $key): array
+    {
+        $value = $data[$key] ?? null;
+
+        return is_array($value) ? $value : [];
     }
 }

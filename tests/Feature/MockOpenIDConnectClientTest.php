@@ -22,7 +22,7 @@ it('lets apps fake the whole SPID login', function () {
         ->and(session(SessionKeys::USER)['given_name'])->toBe('Giulia')
         ->and(session(SessionKeys::ACCESS_TOKEN))->toBe(MockOpenIDConnectClient::ACCESS_TOKEN)
         ->and(session(SessionKeys::REFRESH_TOKEN))->toBe(MockOpenIDConnectClient::REFRESH_TOKEN);
-})->todo();
+});
 
 it('fakes refresh and userinfo', function () {
     $mock = new MockOpenIDConnectClient;

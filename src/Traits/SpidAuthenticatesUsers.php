@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OfflineAgency\SpidLaravelTrentino\Traits;
 
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -13,46 +14,56 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
 use Jumbojett\OpenIDConnectClientException;
+use LogicException;
 use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoUser;
 
 trait SpidAuthenticatesUsers
 {
-    /* -------------------------------------------------------- *
-     *  LOGIN da oggetto SpidTrentinoUser                        *
-     * -------------------------------------------------------- */
     /**
-     * Authenticate (or create) a user from the SPID payload.
+     * Finds the local user by fiscal code (or creates it), syncs the profile
+     * and logs it in. The model needs the columns of the package migration,
+     * those attributes in $fillable and 'spid_profile' => 'array' in $casts.
      */
     protected function authenticateFromSpid(SpidTrentinoUser $spidUser): void
     {
-        /** 1. Resolve the configured User model class */
-        $userModel = config('auth.providers.users.model');
+        $userModel = Config::string('auth.providers.users.model');
 
-        /** 2. Find the user by fiscal code or create a new instance */
-        /** @var Model|Authenticatable $user */
-        $user = $userModel::firstOrNew(['fiscal_code' => $spidUser->getFiscalNumber()]);
+        if (! is_a($userModel, Model::class, true)) {
+            throw new LogicException("The user model [{$userModel}] must be an Eloquent model.");
+        }
 
-        /** 3. Sync profile data (updated every login or set on first creation) */
+        $user = $userModel::query()->firstOrNew(['fiscal_code' => $spidUser->getFiscalNumber()]);
+
+        if (! $user instanceof Authenticatable) {
+            throw new LogicException("The user model [{$userModel}] must implement Authenticatable.");
+        }
+
         $user->fill([
             'name' => $spidUser->getName(),
             'surname' => $spidUser->getSurname(),
             'preferred_username' => $spidUser->getPreferredUsername(),
             'locale' => $spidUser->getLocale(),
-            'zoneinfo' => $spidUser->getZoneInfo(),
+            'zoneinfo' => $spidUser->getZoneinfo(),
         ]);
 
-        /** 4. Store the full SPID payload */
-        $user->spid_profile = $spidUser->toArray();
+        $email = $spidUser->getEmail();
 
-        /** 5. Persist if it’s a new record or if any field changed */
+        // Never link or take over another account by email.
+        if ($email !== '' && ! $userModel::query()
+            ->where('email', $email)
+            ->when($user->exists, fn (Builder $query) => $query->whereKeyNot($user->getKey()))
+            ->exists()) {
+            $user->setAttribute('email', $email);
+        }
+
+        $user->setAttribute('spid_profile', $spidUser->toArray());
         $user->save();
 
-        /** 6. Log the user in and regenerate the session ID */
         Auth::login($user);
         Session::regenerate();
 
-        Log::debug('[SPID] user authenticated', ['user_id' => $user->id]);
+        Log::info('[SPID] Local user authenticated', ['user_id' => $user->getKey()]);
     }
 
     /**
@@ -66,9 +77,6 @@ trait SpidAuthenticatesUsers
             ->with(SessionKeys::ERROR, 'SPID authentication failed. Please try again.');
     }
 
-    /* -------------------------------------------------------- *
-     *  Redirect post-login                                     *
-     * -------------------------------------------------------- */
     protected function redirectTo(): string
     {
         $configured = Config::get('spid-laravel-trentino.redirect_to');

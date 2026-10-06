@@ -36,7 +36,7 @@ it('logs the user in on callback and redirects to the intended page', function (
     $this->get('/spid/callback?code=auth-code&state='.FakeAacProvider::STATE)->assertRedirect('/');
 
     $this->assertAuthenticated();
-})->todo();
+});
 
 it('accepts the session created by the callback on spid.valid routes', function () {
     Route::middleware(['web', 'auth', 'spid.refresh', 'spid.valid'])->get('/reserved', fn () => 'reserved');
@@ -46,7 +46,7 @@ it('accepts the session created by the callback on spid.valid routes', function 
     $this->get('/spid/callback?code=auth-code&state='.FakeAacProvider::STATE);
 
     $this->get('/reserved')->assertOk()->assertSee('reserved');
-})->todo();
+});
 
 it('redirects to the error page with a flash message when the callback fails', function (array $query, array $idTokenClaims) {
     FakeAacProvider::fake($idTokenClaims === [] ? [] : ['id_token' => FakeAacProvider::idToken($idTokenClaims)]);

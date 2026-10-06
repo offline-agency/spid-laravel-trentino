@@ -55,16 +55,6 @@ trait SpidAuthenticatesUsers
         Log::debug('[SPID] user authenticated', ['user_id' => $user->id]);
     }
 
-    /* -------------------------------------------------------- *
-     *  LOGOUT                                                  *
-     * -------------------------------------------------------- */
-    protected function spidLogout(): void
-    {
-        Auth::logout();
-        Session::flush();
-        Log::debug('[SPID] logout eseguito');
-    }
-
     /**
      * Logs the failure and sends the user to error_redirect_to with a flash message.
      */

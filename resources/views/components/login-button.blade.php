@@ -1,6 +1,5 @@
-@props(['label' => 'Accedi con AAC'])
+@props(['label' => 'Entra con SPID'])
 
-<a href="{{ config('spid-laravel-trentino.routes.login', '/aac/login') }}"
-  {{ $attributes->merge(['class' => 'btn btn-light-primary align-self-center w-100"']) }}>
-  {{ $label }}
+<a href="{{ route('spid.login') }}" {{ $attributes->merge(['class' => 'btn btn-light-primary align-self-center w-100']) }}>
+    {{ $label }}
 </a>

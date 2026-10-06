@@ -60,11 +60,13 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
     /**
      * Runs the code flow against the given callback parameters. The parent
      * reads $_REQUEST, so it is swapped for the whitelisted string parameters
-     * and restored afterwards.
+     * and restored afterwards. Without a code or error parameter the parent
+     * starts a new authorization request, which redirects.
      *
      * @param  array<array-key, mixed>  $parameters
      *
      * @throws OpenIDConnectClientException
+     * @throws HttpResponseException with the redirect to the authorization endpoint
      */
     public function authenticateWith(array $parameters): bool
     {
@@ -105,6 +107,9 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
         throw new OpenIDConnectClientException('The authorization request did not produce a redirect.');
     }
 
+    /**
+     * @throws HttpResponseException always, carrying the redirect response
+     */
     public function redirect(string $url): never
     {
         throw new HttpResponseException(new RedirectResponse($url));

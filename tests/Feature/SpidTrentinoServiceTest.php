@@ -87,6 +87,7 @@ it('refuses a userinfo without fiscal code', function (array $userInfo) {
 })->with([
     'claim missing' => [['enti-codicefiscale' => null]],
     'empty fiscal code' => [['enti-codicefiscale' => ['fiscalCode' => '']]],
+    'whitespace-only fiscal code' => [['enti-codicefiscale' => ['fiscalCode' => "  \t"]]],
 ]);
 
 it('refuses a userinfo that is not a JSON object', function (string $body) {

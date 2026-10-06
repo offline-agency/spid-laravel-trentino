@@ -271,7 +271,7 @@ class SpidTrentinoUser implements Arrayable, JsonSerializable
      */
     public function getFiscalNumber(): string
     {
-        return self::stringClaim($this->entiCodiceFiscale, 'fiscalCode');
+        return trim(self::stringClaim($this->entiCodiceFiscale, 'fiscalCode'));
     }
 
     public function getName(): string

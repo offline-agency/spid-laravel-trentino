@@ -51,7 +51,7 @@ The package does not validate the ID token a second time with another library. G
 
 ## Transaction log
 
-The SPID/CIE OIDC transaction log stores the OIDC messages of every login for at least 24 months, encrypted with `APP_KEY` and signed with an HMAC; access and refresh tokens only as SHA-256 hashes, the client secret never. Its searchable columns (`sub`, authorization code, IP address, user agent) are stored in clear for indexing: restrict access to the table. See [transaction log](transaction-log.md).
+The SPID/CIE OIDC transaction log stores the OIDC messages of every login for at least 24 months, encrypted with `APP_KEY`, signed with a versioned HMAC key and linked by a SHA-256 hash chain that `spid:verify-logs` checks; access and refresh tokens only as SHA-256 hashes, the client secret never. Its searchable columns (`sub`, authorization code, IP address, user agent) are stored in clear for indexing: restrict access to the tables. The chain shows deleted, inserted and edited rows; only the daily digests on write-once storage (`transaction_log.digest_disk`) make a rebuilt chain detectable, so enable them in production. See [transaction log](transaction-log.md).
 
 ## Logging and personal data
 
@@ -71,7 +71,8 @@ The SPID/CIE OIDC transaction log stores the OIDC messages of every login for at
 
 - Serve the application over HTTPS and set `SESSION_SECURE_COOKIE=true`.
 - Point `SPID_TRENTINO_PROVIDER_URL` to the production AAC (the default is the test environment).
-- Keep `SPID_TRENTINO_CLIENT_SECRET` and `APP_KEY` out of version control.
+- Keep `SPID_TRENTINO_CLIENT_SECRET`, `APP_KEY` and `SPID_TRENTINO_TRANSACTION_LOG_KEYS` out of version control, and escrow every key that protected retained transaction log rows.
+- Set `SPID_TRENTINO_TRANSACTION_LOG_DIGEST_DISK` to write-once storage and schedule `spid:log-digest` and `spid:verify-logs`.
 - Set `APP_DEBUG=false`; set `LOG_LEVEL` to `info` or higher.
 - With several servers, use a shared session store and a shared cache store.
 - Keep the server clock in sync (NTP); ID token checks allow 300 seconds of skew.

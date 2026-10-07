@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 - Transaction log for the SPID/CIE OIDC retention policy (based on #3): every OIDC message of a login (authentication, token, userinfo, refresh, logout) is stored encrypted with an HMAC-SHA256, grouped by transaction id; `spid:prune-logs` command with a 24-month floor; `transaction_log` configuration; `SessionKeys::TRANSACTION_ID`. Access and refresh tokens are stored only as SHA-256 hashes and the client secret never.
+- Tamper-evident transaction log: versioned HMAC keys (`transaction_log.keys`, `transaction_log.current_key`, recorded per row in `key_id`), a SHA-256 hash chain linking every row to the previous one, prune checkpoints, `spid:verify-logs` to check HMACs and links, and `spid:log-digest` to write daily chain digests to write-once storage (`transaction_log.digest_disk`, off by default). New publishable migration `spid_transaction_logs_add_tamper_evidence`; see [UPGRADE.md](UPGRADE.md). Requires `illuminate/filesystem`.
+
+### Changed
+- `spid:prune-logs` deletes only the oldest contiguous run of expired rows and records a checkpoint, so the remaining chain has no gaps.
+
+### Fixed
+- Rotating `APP_KEY` no longer makes older transaction log rows fail `verifyIntegrity()` once dedicated HMAC keys are configured (KI-13). The log is now tamper-evident (KI-15).
 
 ## [2.1.0] - 2026-10-07
 

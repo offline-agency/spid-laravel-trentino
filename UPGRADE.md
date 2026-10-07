@@ -1,5 +1,33 @@
 # Upgrade Guide
 
+## Unreleased
+
+### Transaction log migration (required if you use the transaction log)
+
+Publish and run the new migration. It adds `key_id`, `previous_hash` and `chain_hash` to the transaction log table and creates `<table>_heads` and `<table>_checkpoints`; existing rows are not modified:
+
+```bash
+php artisan vendor:publish --tag=spid-laravel-trentino-migrations
+php artisan migrate
+```
+
+Until it runs, every transaction log write fails and is logged as `[SPID] Transaction log write failed` (logins keep working). Rows written before the upgrade keep their `APP_KEY` HMAC and are reported as legacy rows by `spid:verify-logs`.
+
+### HMAC keys (recommended)
+
+New rows are still signed with `APP_KEY` (key id `app`) until you configure dedicated keys:
+
+```dotenv
+SPID_TRENTINO_TRANSACTION_LOG_KEYS="2026a:base64:..."
+SPID_TRENTINO_TRANSACTION_LOG_CURRENT_KEY=2026a
+```
+
+Keep `APP_KEY` available (also through `APP_PREVIOUS_KEYS` after a rotation) for as long as rows signed or encrypted with it are retained, and escrow every key. See [keys and rotation](docs/transaction-log.md#keys-and-rotation).
+
+### Digests and verification (recommended)
+
+Set `SPID_TRENTINO_TRANSACTION_LOG_DIGEST_DISK` to write-once storage and schedule `spid:log-digest` and `spid:verify-logs` next to `spid:prune-logs`. See [daily digests](docs/transaction-log.md#daily-digests).
+
 ## Upgrading from 1.x to 2.0
 
 2.0 fixes several bugs that made 1.x unusable in practice (the `spid.valid` middleware logged every user out, `redirect_to` was never applied, the facade did not resolve). Most applications only need the steps marked **required**.

@@ -1,8 +1,9 @@
 # Known issues
 
-This log tracks behavior that is incorrect, incomplete or surprising, with enough detail to fix it later. It has two parts:
+This log tracks behavior that is incorrect, incomplete or surprising, with enough detail to fix it later. It has three parts:
 
 - [Open in 2.0](#open-in-20): issues present in the current code, ordered by severity.
+- [Resolved since 2.1](#resolved-since-21): issues of this log fixed after 2.1.0, with the change that fixed them.
 - [Resolved in 2.0](#resolved-in-20): discrepancies found in 1.x (`master` before 2.0) and how 2.0 fixed them, kept for teams upgrading from 1.x.
 
 Severity scale:
@@ -68,14 +69,6 @@ There are no Critical issues open.
 - **Impact:** with a public client (empty `SPID_TRENTINO_CLIENT_SECRET`), AAC may reject every refresh; users are then sent back to the SPID login when the access token expires. Not tested against AAC.
 - **Suggested fix:** for public clients, override `refreshToken()` to send `client_id` in the body without an `Authorization` header; until then, prefer a confidential client.
 
-### KI-13: Transaction log integrity checks depend on the current APP_KEY
-
-- **Severity:** Medium
-- **Location:** `src/Models/SpidTransactionLog.php` (`hmac()`, `verifyIntegrity()`)
-- **Current behavior:** payloads are encrypted and their HMAC is computed with the current `APP_KEY`. After a key rotation, old rows can still be decrypted when the old key is in `APP_PREVIOUS_KEYS`, but `verifyIntegrity()` recomputes the HMAC with the new key and returns `false`.
-- **Impact:** within the 24-month retention, a rotated `APP_KEY` makes older records fail integrity checks even though they were not tampered with.
-- **Suggested fix:** store a key identifier with each row and keep a dedicated, versioned HMAC key (for example from configuration) instead of `APP_KEY`.
-
 ### KI-14: The transaction log does not record federation trust chains or follow lost sessions
 
 - **Severity:** Low
@@ -131,6 +124,13 @@ There are no Critical issues open.
 - **Current behavior:** the Packagist badges need the package to be published on Packagist, and the coverage badge needs the `CODECOV_TOKEN` repository secret.
 - **Impact:** badges show "not found" or "unknown" until then.
 - **Suggested fix:** submit the package to Packagist and add the secret.
+
+## Resolved since 2.1
+
+| # | Issue | Fixed by |
+|---|-------|----------|
+| KI-13 | Transaction log integrity checks depended on the current `APP_KEY`: rotating it made older rows fail `verifyIntegrity()` | Versioned HMAC keys (`transaction_log.keys`, `transaction_log.current_key`); each row records its key in `key_id` and is verified with that key, and `app` keeps meaning `APP_KEY` for older rows. See [keys and rotation](transaction-log.md#keys-and-rotation) |
+| KI-15 | The transaction log was not tamper-evident: a row could be rewritten with a recomputed HMAC, and deleted rows left no trace | SHA-256 hash chain over every row, checkpoints recorded by `spid:prune-logs`, `spid:verify-logs`, and daily digests of the chain on write-once storage with `spid:log-digest`; key escrow documented. See [hash chain](transaction-log.md#hash-chain) |
 
 ## Resolved in 2.0
 

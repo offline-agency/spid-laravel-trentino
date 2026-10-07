@@ -1,8 +1,9 @@
 # Known issues
 
-This log tracks behavior that is incorrect, incomplete or surprising, with enough detail to fix it later. It has two parts:
+This log tracks behavior that is incorrect, incomplete or surprising, with enough detail to fix it later. It has three parts:
 
 - [Open in 2.0](#open-in-20): issues present in the current code, ordered by severity.
+- [Resolved since 2.1](#resolved-since-21): issues of this log fixed after 2.1.0, with the change that fixed them.
 - [Resolved in 2.0](#resolved-in-20): discrepancies found in 1.x (`master` before 2.0) and how 2.0 fixed them, kept for teams upgrading from 1.x.
 
 Severity scale:
@@ -131,6 +132,12 @@ There are no Critical issues open.
 - **Current behavior:** the Packagist badges need the package to be published on Packagist, and the coverage badge needs the `CODECOV_TOKEN` repository secret.
 - **Impact:** badges show "not found" or "unknown" until then.
 - **Suggested fix:** submit the package to Packagist and add the secret.
+
+## Resolved since 2.1
+
+| # | Issue | Fixed by |
+|---|-------|----------|
+| KI-18 | The SPID assurance level and identity source were not enforced | `required_acr` (requested with `acr_values`, enforced on the callback) and `allowed_issuer_sources`, read through configurable `claims.acr` and `claims.issuer_source` paths. The default claim names still depend on [KI-01](#ki-01-aac-claim-names-are-not-verified-against-a-real-userinfo-response), which stays open. See [security](security.md#spid-level-and-identity-provider) |
 
 ## Resolved in 2.0
 

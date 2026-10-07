@@ -55,6 +55,7 @@ sequenceDiagram
     S->>O: requestUserInfo()
     O->>A: GET userinfo_endpoint (Bearer access token)
     A-->>O: claims (enti-codicefiscale, given_name, ...)
+    S->>S: check required_acr and allowed_issuer_sources (when set)
     S->>S: require a fiscal code
     S->>L: put spid_trentino_access_token, _refresh_token, _access_token_expires_at, spid_trentino_user
     S->>S: dispatch SpidTrentinoLoggedIn
@@ -69,6 +70,7 @@ Details:
 - jumbojett exchanges the code first and compares `state` afterwards ([KI-07](known-issues.md#ki-07-the-authorization-code-is-exchanged-before-the-state-is-checked)); a lost session therefore usually fails at the token request, see [troubleshooting](troubleshooting.md#login-fails-after-returning-from-aac-session-lost-second-tab-reloaded-callback).
 - ID token verification is done by jumbojett with the keys from the discovered `jwks_uri`. The package adds stricter checks: string `iss` and `sub`, the client id in `aud`, and a mandatory integer `exp`. See [security](security.md#id-token-validation).
 - The token response must be a JSON object with string `access_token` and `id_token`; anything else (for example a gateway error page) fails the login.
+- With `required_acr` or `allowed_issuer_sources` set, a login below the required level, with an undeterminable level, or from an identity provider outside the list is rejected before anything is stored in the session (see [security](security.md#spid-level-and-identity-provider)). With `required_acr` set, the login request also carries `acr_values`.
 - A userinfo response without `enti-codicefiscale.fiscalCode` (or with only whitespace) fails the login with `AAC did not return a fiscal code for the authenticated user.`
 - The user record is handled by `authenticateFromSpid()`, described in [user model](user-model.md).
 
@@ -88,6 +90,8 @@ Any `Jumbojett\OpenIDConnectClientException` thrown during login or callback is 
 1. The exception is logged with `[SPID] Authentication failed`.
 2. The user is redirected to `error_redirect_to` (default `/`).
 3. The flash message `SPID authentication failed. Please try again.` is stored under `SessionKeys::ERROR`.
+
+A login rejected by the level or identity provider policy (`AuthenticationRejected`) is logged as `[SPID] Login rejected` at warning level instead, and the flash message says why: `Your SPID login does not meet the security level required by this service.` or `Your identity provider is not accepted by this service.`
 
 The user is not logged in and no local user is created. The common causes and their log lines are listed in [troubleshooting](troubleshooting.md).
 

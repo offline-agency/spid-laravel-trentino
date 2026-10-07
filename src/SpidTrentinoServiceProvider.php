@@ -12,6 +12,7 @@ use OfflineAgency\SpidLaravelTrentino\Console\Commands\PruneSpidTransactionLogs;
 use OfflineAgency\SpidLaravelTrentino\Http\Middleware\EnsureValidSpidToken;
 use OfflineAgency\SpidLaravelTrentino\Http\Middleware\RefreshSpidTokenIfNeeded;
 use OfflineAgency\SpidLaravelTrentino\OpenIdConnect\LaravelOpenIDConnectClient;
+use OfflineAgency\SpidLaravelTrentino\Support\SpidLevel;
 
 class SpidTrentinoServiceProvider extends ServiceProvider
 {
@@ -25,6 +26,9 @@ class SpidTrentinoServiceProvider extends ServiceProvider
 
     public function boot(Router $router): void
     {
+        // Fails early on a misconfigured level instead of on the first login.
+        SpidLevel::required(Config::get('spid-laravel-trentino.required_acr'));
+
         $router->aliasMiddleware('spid.valid', EnsureValidSpidToken::class);
         $router->aliasMiddleware('spid.refresh', RefreshSpidTokenIfNeeded::class);
 
@@ -72,6 +76,12 @@ class SpidTrentinoServiceProvider extends ServiceProvider
         // "openid" is always added by the client.
         $client->addScope(array_values(array_diff($scopes, ['openid'])));
         $client->setCodeChallengeMethod('S256');
+
+        $requiredLevel = SpidLevel::required(Config::get('spid-laravel-trentino.required_acr'));
+
+        if ($requiredLevel !== null) {
+            $client->addAuthParam(['acr_values' => SpidLevel::uri($requiredLevel)]);
+        }
 
         return $client;
     }

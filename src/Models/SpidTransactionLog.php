@@ -36,6 +36,7 @@ class SpidTransactionLog extends Model
     public const array EVENT_TYPES = [
         'authentication_request',
         'authentication_response',
+        'authentication_rejected',
         'token_request',
         'token_response',
         'userinfo_request',

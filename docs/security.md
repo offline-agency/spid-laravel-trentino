@@ -9,6 +9,21 @@ This page describes what the package protects against, what it leaves to your ap
 - **Nonce:** a random `nonce` is sent and compared with the ID token claim when the claim is present, see [KI-02](known-issues.md#ki-02-nonce-is-optional-and-the-userinfo-subject-is-not-matched).
 - **Callback parameters:** only `code`, `state`, `error` and `error_description` are read, and only when they are strings; other request input never reaches the OIDC library.
 
+## SPID level and identity provider
+
+By default the package accepts any SPID level and any identity provider that AAC authenticates. Services that are legally required to use a minimum level set `required_acr`:
+
+```dotenv
+SPID_TRENTINO_REQUIRED_ACR=SpidL2
+SPID_TRENTINO_ALLOWED_ISSUER_SOURCES="https://idp-a.example,https://idp-b.example"   # optional
+```
+
+- The level is requested from AAC with `acr_values=https://www.spid.gov.it/SpidL2` and checked on the callback, so a login that AAC completed at a lower level is still refused.
+- The level is read from the verified ID token `acr` claim first, then from the userinfo `enti-acr.acr` claim (`claims.acr`). A higher level satisfies a lower requirement. A login whose level is missing or not a SPID level is rejected.
+- With `allowed_issuer_sources`, the identity provider is read from `enti-issuersource.issuerSource` (`claims.issuer_source`) and must match one of the listed values exactly; a missing value is rejected.
+- The check runs before anything is stored in the session: a rejected login leaves no tokens or user behind, writes an `authentication_rejected` row to the [transaction log](transaction-log.md), logs `[SPID] Login rejected` (reason and levels, no personal data) and shows a dedicated message (see [troubleshooting](troubleshooting.md#login-rejected-for-the-spid-level-or-the-identity-provider)).
+- The AAC claim names are not yet verified against a real response ([KI-01](known-issues.md#ki-01-aac-claim-names-are-not-verified-against-a-real-userinfo-response)). If AAC uses other names, change `claims.acr` and `claims.issuer_source` in the published configuration instead of disabling the check.
+
 ## Session fallback for lost cookies
 
 Some networks (for example corporate proxies) strip the session cookie, so the callback arrives with an empty session and the login fails. Setting `session_fallback` to `true` keeps a copy of the pending login in the cache:
@@ -76,3 +91,4 @@ The SPID/CIE OIDC transaction log stores the OIDC messages of every login for at
 - With several servers, use a shared session store and a shared cache store.
 - Keep the server clock in sync (NTP); ID token checks allow 300 seconds of skew.
 - Protect routes with `['web', 'auth', 'spid.refresh', 'spid.valid']`.
+- Set `required_acr` (and, if required, `allowed_issuer_sources`) when your service needs a minimum SPID level.

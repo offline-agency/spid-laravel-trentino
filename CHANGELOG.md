@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 - Transaction log for the SPID/CIE OIDC retention policy (based on #3): every OIDC message of a login (authentication, token, userinfo, refresh, logout) is stored encrypted with an HMAC-SHA256, grouped by transaction id; `spid:prune-logs` command with a 24-month floor; `transaction_log` configuration; `SessionKeys::TRANSACTION_ID`. Access and refresh tokens are stored only as SHA-256 hashes and the client secret never.
+- `required_acr` and `allowed_issuer_sources` options (off by default): the minimum SPID level is requested with `acr_values` and enforced on the callback (verified ID token `acr`, then `enti-acr.acr`; higher levels accepted, unknown levels rejected), and logins from identity providers outside the list are refused. Claim locations are configurable with `claims.acr` and `claims.issuer_source`. Rejected logins get a dedicated message, the `AuthenticationRejected` exception and an `authentication_rejected` transaction log row (KI-18).
 
 ## [2.1.0] - 2026-10-07
 

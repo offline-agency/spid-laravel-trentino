@@ -66,6 +66,32 @@ return [
     ],
 
     /*
+    | Minimum SPID level for a login: SpidL1, SpidL2 or SpidL3 (or the
+    | https://www.spid.gov.it/SpidLn URI). When set, the level is requested
+    | from AAC with acr_values and checked on the callback (higher levels are
+    | accepted); a login whose level is lower or cannot be determined is
+    | rejected. null accepts any level.
+    */
+    'required_acr' => env('SPID_TRENTINO_REQUIRED_ACR'),
+
+    /*
+    | Identity providers accepted for a login, as a comma separated list of
+    | issuer sources (or an array). null accepts any.
+    */
+    'allowed_issuer_sources' => env('SPID_TRENTINO_ALLOWED_ISSUER_SOURCES'),
+
+    /*
+    | Where the SPID level and the identity provider are read, as ordered
+    | "source:dot.path" lists: source is id_token (verified ID token claims) or
+    | userinfo. The first non-empty value wins. Adjust them if AAC uses other
+    | claim names (see docs/known-issues.md, KI-01).
+    */
+    'claims' => [
+        'acr' => ['id_token:acr', 'userinfo:enti-acr.acr'],
+        'issuer_source' => ['userinfo:enti-issuersource.issuerSource'],
+    ],
+
+    /*
     | Set to false to register your own routes named spid.login, spid.callback
     | and spid.logout.
     */

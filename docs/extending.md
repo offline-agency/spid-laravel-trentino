@@ -48,7 +48,7 @@ Run `php artisan config:clear` (or `route:clear` if you cache routes) after the 
 |----------------------------------------|------------------|
 | `authenticateFromSpid(SpidTrentinoUser $spidUser): void` | Find or create the user by fiscal code, sync profile, log in (see [user model](user-model.md)) |
 | `redirectTo(): string` | `redirect_to`, then `/admin/dashboard` for admins, then `/` |
-| `spidLoginFailed(OpenIDConnectClientException $exception): RedirectResponse` | Log `[SPID] Authentication failed`, redirect to `error_redirect_to` with the flash message under `SessionKeys::ERROR` |
+| `spidLoginFailed(OpenIDConnectClientException $exception): RedirectResponse` | Log `[SPID] Authentication failed`, redirect to `error_redirect_to` with the flash message under `SessionKeys::ERROR`. For an `AuthenticationRejected` exception (`required_acr`, `allowed_issuer_sources`) it logs `[SPID] Login rejected` at warning level and flashes `$exception->userMessage()`; overrides should keep that branch (or call `parent::spidLoginFailed()`) |
 
 The controller actions `login()`, `callback()` and `logout()` are public and can be overridden too.
 

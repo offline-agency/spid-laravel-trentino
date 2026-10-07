@@ -39,6 +39,7 @@ Each OIDC message becomes one row of `OfflineAgency\SpidLaravelTrentino\Models\S
 |------------|------------|---------|
 | `authentication_request` | `SpidTrentino::redirectToLogin()` | authorization endpoint and the request parameters (client id, redirect URI, scope, state, nonce, PKCE challenge) |
 | `authentication_response` | `SpidTrentino::handleCallback()`, before the code exchange | `code`, `state`, or `error` and `error_description`; written for failed callbacks too |
+| `authentication_rejected` | `handleCallback()`, when `required_acr` or `allowed_issuer_sources` refuses the login | `reason` (`acr` or `issuer_source`), `required`, `actual`, `issuer_source`; no tokens |
 | `token_request` | `handleCallback()`, after a successful exchange | grant type, code, client id, redirect URI (never the client secret) |
 | `token_response` | `handleCallback()` | the token response with `access_token` and `refresh_token` replaced by `sha256:<hash>`; the signed `id_token` is kept as evidence |
 | `userinfo_request`, `userinfo_response` | `handleCallback()` | the request marker and the userinfo claims |

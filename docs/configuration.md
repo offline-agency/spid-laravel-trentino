@@ -20,6 +20,10 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 | `transaction_log.enabled` | bool | `true` | `SPID_TRENTINO_TRANSACTION_LOG_ENABLED` | Write the SPID/CIE OIDC [transaction log](transaction-log.md). Disable only in development and tests. |
 | `transaction_log.table` | string | `spid_transaction_logs` | `SPID_TRENTINO_TRANSACTION_LOG_TABLE` | Table of the transaction log (read by the migration and the model). |
 | `transaction_log.retention_months` | int | `24` | `SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS` | Retention used by `spid:prune-logs`; values below 24 are raised to 24. |
+| `required_acr` | string or null | `null` | `SPID_TRENTINO_REQUIRED_ACR` | Minimum SPID level: `SpidL1`, `SpidL2`, `SpidL3` or the `https://www.spid.gov.it/SpidLn` URI. Requested with `acr_values` and checked on the callback; higher levels are accepted, lower or undeterminable levels are rejected. Any other value throws an `InvalidArgumentException` at boot. See [security](security.md#spid-level-and-identity-provider). |
+| `allowed_issuer_sources` | string, array or null | `null` | `SPID_TRENTINO_ALLOWED_ISSUER_SOURCES` | Identity providers accepted for a login, comma separated (or an array). `null` or empty accepts any. |
+| `claims.acr` | list of strings | `['id_token:acr', 'userinfo:enti-acr.acr']` | none | Where the SPID level is read: `source:dot.path`, with `source` = `id_token` (verified ID token claims) or `userinfo`. The first non-empty value wins. |
+| `claims.issuer_source` | list of strings | `['userinfo:enti-issuersource.issuerSource']` | none | Where the identity provider is read, same format as `claims.acr`. |
 | `register_routes` | bool | `true` | none | `false` skips loading the package routes; register your own with the same names. |
 | `routes.login` | string | `/spid/login` | none | Path of the `spid.login` route (GET). |
 | `routes.callback` | string | `/spid/callback` | none | Path of the `spid.callback` route (GET). |

@@ -32,14 +32,14 @@ it('stores tokens, expiry and user, dispatches the login event and returns the u
 
     $user = app(SpidTrentino::class)->handleCallback();
 
-    expect($user->getFiscalNumber())->toBe(FakeAacProvider::FISCAL_CODE)
+    expect($user->getFiscalNumber())->toBe(FakeAacProvider::NORMALIZED_FISCAL_CODE)
         ->and($user->getEmail())->toBe('mario.rossi@example.com')
         ->and(Session::get(SessionKeys::ACCESS_TOKEN))->toBe(FakeAacProvider::ACCESS_TOKEN)
         ->and(Session::get(SessionKeys::REFRESH_TOKEN))->toBe(FakeAacProvider::REFRESH_TOKEN)
         ->and(Session::get(SessionKeys::ACCESS_TOKEN_EXPIRES_AT))->toBe('2026-01-01T13:00:00+00:00')
         ->and(Session::get(SessionKeys::USER))->toBe($user->toArray());
 
-    Event::assertDispatched(SpidTrentinoLoggedIn::class, fn (SpidTrentinoLoggedIn $event) => $event->getUser()->getFiscalNumber() === FakeAacProvider::FISCAL_CODE);
+    Event::assertDispatched(SpidTrentinoLoggedIn::class, fn (SpidTrentinoLoggedIn $event) => $event->getUser()->getFiscalNumber() === FakeAacProvider::NORMALIZED_FISCAL_CODE);
     Http::assertSent(fn ($request) => str_starts_with($request->url(), FakeAacProvider::ISSUER.'/userinfo')
         && $request->hasHeader('Authorization', 'Bearer '.FakeAacProvider::ACCESS_TOKEN));
 });
@@ -218,7 +218,7 @@ it('logs out, ends the session and dispatches the logout event', function () {
     $this->assertGuest();
     expect(Session::has(SessionKeys::USER))->toBeFalse()
         ->and(Session::has(SessionKeys::ACCESS_TOKEN))->toBeFalse();
-    Event::assertDispatched(SpidTrentinoLoggedOut::class, fn (SpidTrentinoLoggedOut $event) => $event->getUser()->getFiscalNumber() === FakeAacProvider::FISCAL_CODE);
+    Event::assertDispatched(SpidTrentinoLoggedOut::class, fn (SpidTrentinoLoggedOut $event) => $event->getUser()->getFiscalNumber() === FakeAacProvider::NORMALIZED_FISCAL_CODE);
 });
 
 it('does not dispatch the logout event without a SPID user', function () {

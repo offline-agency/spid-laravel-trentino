@@ -21,7 +21,7 @@ it('maps every AAC claim', function () {
         ->and($user->getZoneinfo())->toBe('Europe/Rome')
         ->and($user->getRealm())->toBe('test-realm')
         ->and($user->getId())->toBe('user-123')
-        ->and($user->getFiscalNumber())->toBe(FakeAacProvider::FISCAL_CODE)
+        ->and($user->getFiscalNumber())->toBe(FakeAacProvider::NORMALIZED_FISCAL_CODE)
         ->and($user->getEntiCodiceFiscale())->toBe(['fiscalCode' => FakeAacProvider::FISCAL_CODE, 'id' => 'cf-1'])
         ->and($user->getEntiSpid())->toBe(['isSpid' => 'true', 'spidCode' => 'TEST0000000001', 'id' => 'spid-1'])
         ->and($user->getEntiAcr())->toBe(['acr' => 'https://www.spid.gov.it/SpidL2', 'id' => 'acr-1'])
@@ -39,7 +39,7 @@ it('round-trips through toArray and JSON', function () {
 it('hydrates from nested stdClass objects as returned by jumbojett', function () {
     $payload = json_decode((string) json_encode(FakeAacProvider::userInfo()));
 
-    expect(SpidTrentinoUser::fromStdClass($payload)->getFiscalNumber())->toBe(FakeAacProvider::FISCAL_CODE)
+    expect(SpidTrentinoUser::fromStdClass($payload)->getFiscalNumber())->toBe(FakeAacProvider::NORMALIZED_FISCAL_CODE)
         ->and((new SpidTrentinoUser($payload))->getEmail())->toBe('mario.rossi@example.com');
 });
 
@@ -80,4 +80,16 @@ it('exposes fluent setters', function () {
         'enti-acr' => ['acr' => 'y'], 'enti-spid' => ['isSpid' => 'true'], 'realm' => 'r',
         'enti-codicefiscale' => ['fiscalCode' => 'TINIT-X'], 'id' => 'i', 'family_name' => 'f',
     ]);
+});
+
+it('returns the normalized fiscal number and keeps the raw claim', function () {
+    $user = SpidTrentinoUser::fromArray(['enti-codicefiscale' => ['fiscalCode' => ' tinit-rssmra80a01h501u ']]);
+
+    expect($user->getFiscalNumber())->toBe('RSSMRA80A01H501U')
+        ->and($user->getEntiCodiceFiscale())->toBe(['fiscalCode' => ' tinit-rssmra80a01h501u '])
+        ->and($user->toArray()['enti-codicefiscale'])->toBe(['fiscalCode' => ' tinit-rssmra80a01h501u ']);
+});
+
+it('has no fiscal number when the claim holds only the prefix', function () {
+    expect(SpidTrentinoUser::fromArray(['enti-codicefiscale' => ['fiscalCode' => 'TINIT-']])->getFiscalNumber())->toBe('');
 });

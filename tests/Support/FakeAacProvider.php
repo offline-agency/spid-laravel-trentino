@@ -36,6 +36,8 @@ final class FakeAacProvider
 
     public const string FISCAL_CODE = 'TINIT-RSSMRA80A01H501U';
 
+    public const string NORMALIZED_FISCAL_CODE = 'RSSMRA80A01H501U';
+
     /** @var array<string, OpenSSLAsymmetricKey> */
     private static array $keys = [];
 

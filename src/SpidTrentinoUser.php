@@ -7,6 +7,7 @@ namespace OfflineAgency\SpidLaravelTrentino;
 use Illuminate\Contracts\Support\Arrayable;
 use InvalidArgumentException;
 use JsonSerializable;
+use OfflineAgency\SpidLaravelTrentino\Support\FiscalCode;
 use stdClass;
 
 /**
@@ -267,11 +268,13 @@ class SpidTrentinoUser implements Arrayable, JsonSerializable
     }
 
     /**
-     * Fiscal number from enti-codicefiscale.fiscalCode (for example TINIT-RSSMRA80A01H501U).
+     * Fiscal number from enti-codicefiscale.fiscalCode, normalized with
+     * FiscalCode::normalize() (TINIT-RSSMRA80A01H501U becomes RSSMRA80A01H501U).
+     * The raw claim stays available in getEntiCodiceFiscale() and toArray().
      */
     public function getFiscalNumber(): string
     {
-        return trim(self::stringClaim($this->entiCodiceFiscale, 'fiscalCode'));
+        return FiscalCode::normalize(self::stringClaim($this->entiCodiceFiscale, 'fiscalCode'));
     }
 
     public function getName(): string

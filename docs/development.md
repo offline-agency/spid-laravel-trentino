@@ -77,7 +77,7 @@ it('logs the user in', function () {
 | `authenticateWith()` / `authenticate()` | Always succeed, access token `mock-access-token` |
 | `getTokenResponse()` | Access, refresh and ID tokens (`MockOpenIDConnectClient::ACCESS_TOKEN`, `REFRESH_TOKEN`, `ID_TOKEN`), `expires_in` 3600 |
 | `refreshToken()` | Access token `mock-refreshed-access-token`, same refresh token |
-| `requestUserInfo()` | AAC-shaped claims, fiscal code `MockOpenIDConnectClient::FISCAL_CODE` (`TINIT-RSSMRA80A01H501U`) |
+| `requestUserInfo()` | AAC-shaped claims, fiscal code `MockOpenIDConnectClient::FISCAL_CODE` (`TINIT-RSSMRA80A01H501U`, stored as `MockOpenIDConnectClient::NORMALIZED_FISCAL_CODE`) |
 | `withUserInfo(array $claims)` | Replace top-level claims |
 
 In an application test:

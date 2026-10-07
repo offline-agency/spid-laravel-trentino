@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 - Transaction log for the SPID/CIE OIDC retention policy (based on #3): every OIDC message of a login (authentication, token, userinfo, refresh, logout) is stored encrypted with an HMAC-SHA256, grouped by transaction id; `spid:prune-logs` command with a 24-month floor; `transaction_log` configuration; `SessionKeys::TRANSACTION_ID`. Access and refresh tokens are stored only as SHA-256 hashes and the client secret never.
+- `spid:normalize-fiscal-codes {--dry-run}` to normalize the fiscal codes of existing users, refusing to create duplicates (KI-19).
+- `Support\FiscalCode::normalize()` and `MockOpenIDConnectClient::NORMALIZED_FISCAL_CODE`.
+
+### Changed
+- **Breaking:** fiscal codes are normalized (trimmed, uppercase, without the `TINIT-` prefix) before local users are matched and stored; `SpidTrentinoUser::getFiscalNumber()` returns the normalized value and `LogRedactor` hashes it. Run `spid:normalize-fiscal-codes` while the application is in maintenance mode, right after deploying and before the first login; see [UPGRADE.md](UPGRADE.md) (KI-19).
 
 ## [2.1.0] - 2026-10-07
 

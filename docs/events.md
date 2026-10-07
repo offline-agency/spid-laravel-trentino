@@ -56,7 +56,7 @@ class RecordSpidLogout implements ShouldQueue
 {
     public function handle(SpidTrentinoLoggedOut $event): void
     {
-        $fiscalCode = $event->user->getFiscalNumber();
+        $fiscalCode = $event->user->getFiscalNumber(); // normalized since 3.0: RSSMRA80A01H501U, no TINIT-
 
         // for example: write an audit record
     }

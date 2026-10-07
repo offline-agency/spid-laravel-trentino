@@ -26,7 +26,7 @@ it('creates the user on first login', function () {
     loginWithSpid();
 
     $user = User::query()->sole();
-    expect($user->fiscal_code)->toBe(MockOpenIDConnectClient::FISCAL_CODE)
+    expect($user->fiscal_code)->toBe(MockOpenIDConnectClient::NORMALIZED_FISCAL_CODE)
         ->and($user->name)->toBe('Mario')
         ->and($user->surname)->toBe('Rossi')
         ->and($user->email)->toBe('mario.rossi@example.com')
@@ -56,7 +56,7 @@ it('stores the fiscal code even when the model does not list it in $fillable', f
     loginWithSpid();
 
     expect(User::query()->count())->toBe(1)
-        ->and(User::query()->sole()->fiscal_code)->toBe(MockOpenIDConnectClient::FISCAL_CODE);
+        ->and(User::query()->sole()->fiscal_code)->toBe(MockOpenIDConnectClient::NORMALIZED_FISCAL_CODE);
 });
 
 it('does not take over an email that belongs to another account', function () {
@@ -64,7 +64,7 @@ it('does not take over an email that belongs to another account', function () {
 
     loginWithSpid();
 
-    $spidUser = User::query()->where('fiscal_code', MockOpenIDConnectClient::FISCAL_CODE)->sole();
+    $spidUser = User::query()->where('fiscal_code', MockOpenIDConnectClient::NORMALIZED_FISCAL_CODE)->sole();
     expect($spidUser->is($other))->toBeFalse()
         ->and($spidUser->email)->toBeNull()
         ->and($other->fresh()->email)->toBe('mario.rossi@example.com');
@@ -100,3 +100,18 @@ it('rolls the migration back', function () {
         expect(Schema::hasColumn('users', $column))->toBeFalse();
     }
 });
+
+it('stores the normalized fiscal code', function () {
+    loginWithSpid();
+
+    expect(User::query()->sole()->fiscal_code)->toBe('RSSMRA80A01H501U');
+});
+
+it('matches an existing user regardless of prefix and case', function (string $claim) {
+    $existing = User::query()->forceCreate(['name' => 'Mario', 'fiscal_code' => 'RSSMRA80A01H501U']);
+
+    loginWithSpid(['enti-codicefiscale' => ['fiscalCode' => $claim, 'id' => 'cf-1']]);
+
+    expect(User::query()->count())->toBe(1);
+    $this->assertAuthenticatedAs($existing->fresh());
+})->with(['AAC form' => 'TINIT-RSSMRA80A01H501U', 'lowercase' => 'tinit-rssmra80a01h501u', 'no prefix' => 'RSSMRA80A01H501U']);

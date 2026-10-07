@@ -21,7 +21,11 @@ class MockOpenIDConnectClient extends LaravelOpenIDConnectClient
 
     public const string ID_TOKEN = 'mock-id-token';
 
+    /** The fiscal code as AAC sends it in enti-codicefiscale.fiscalCode. */
     public const string FISCAL_CODE = 'TINIT-RSSMRA80A01H501U';
+
+    /** The same fiscal code as getFiscalNumber() returns it and the users table stores it. */
+    public const string NORMALIZED_FISCAL_CODE = 'RSSMRA80A01H501U';
 
     /** @var array<string, mixed> */
     private array $userInfo = [

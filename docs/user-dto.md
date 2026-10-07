@@ -24,7 +24,7 @@ Derived getter:
 
 | Getter | Returns |
 |--------|---------|
-| `getFiscalNumber()` | `enti-codicefiscale.fiscalCode`, trimmed, or `''` |
+| `getFiscalNumber()` | `enti-codicefiscale.fiscalCode` normalized with `Support\FiscalCode::normalize()` (trimmed, uppercase, without `TINIT-`), or `''` |
 
 All properties are private; setters return `$this` for chaining. The `enti-*` claim names are still to be confirmed against a real AAC response, see [KI-01](known-issues.md#ki-01-aac-claim-names-are-not-verified-against-a-real-userinfo-response).
 

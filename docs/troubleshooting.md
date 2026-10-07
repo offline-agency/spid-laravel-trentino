@@ -97,6 +97,11 @@ Two different situations:
 - **Cause:** `auth.providers.users.model` points to a class that is not an authenticatable Eloquent model.
 - **Fix:** see [user model](user-model.md).
 
+## "SPID login is temporarily unavailable"
+
+- **Cause:** `transaction_log.fail_closed` is `true` and a transaction log row could not be written. The log has `[SPID] Transaction log write failed` (with the exception class) followed by `[SPID] Login aborted: the transaction log is unavailable`.
+- **Fix:** run `php artisan spid:check-logs` and fix the database problem it reports (missing table: publish and run the migrations; read-only or full database). Logins work again as soon as rows can be written. See [failure handling](transaction-log.md#failure-handling).
+
 ## Other errors
 
 | Message | Cause | Fix |
@@ -106,3 +111,5 @@ Two different situations:
 | `No application encryption key has been specified.` | `APP_KEY` missing (needed to encrypt cookies and sessions) | `php artisan key:generate` |
 | `Route [spid.login] not defined.` | `register_routes` is `false` and no route is named `spid.login` | Register your routes with the package names, see [extending](extending.md#registering-your-own-routes) |
 | Changes to `.env` have no effect | Configuration is cached | `php artisan config:clear` |
+| `A SPID login succeeded at ... but no transaction log row was written since ...` (`spid:check-logs`) | Logins work but the log is not written (fail-open mode hides this from users) | Look for `[SPID] Transaction log write failed` in the application log; consider `transaction_log.fail_closed` |
+| `Row #... failed the integrity check.` (`spid:check-logs`) | The row's payload or HMAC was changed, or `APP_KEY` was rotated (see [KI-13](known-issues.md#ki-13-transaction-log-integrity-checks-depend-on-the-current-app_key)) | Investigate before pruning; restore `APP_KEY` if it was rotated |

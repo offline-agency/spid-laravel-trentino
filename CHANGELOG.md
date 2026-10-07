@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 - Transaction log for the SPID/CIE OIDC retention policy (based on #3): every OIDC message of a login (authentication, token, userinfo, refresh, logout) is stored encrypted with an HMAC-SHA256, grouped by transaction id; `spid:prune-logs` command with a 24-month floor; `transaction_log` configuration; `SessionKeys::TRANSACTION_ID`. Access and refresh tokens are stored only as SHA-256 hashes and the client secret never.
+- `transaction_log.fail_closed` option (default `false`): aborts a login or token refresh whose transaction log row cannot be written, with the message `SPID login is temporarily unavailable. Please try again later.`; logout is never blocked. New `TransactionLogUnavailable` exception (KI-17).
+- `spid:check-logs` health check (`--max-age`, `--sample`): fails when the log is disabled, its table is missing, a recent successful login produced no row, or a sampled row does not verify. Successful logins record their time in the cache (`SpidTrentino::LAST_LOGIN_CACHE_KEY`) (KI-17).
 
 ## [2.1.0] - 2026-10-07
 

@@ -20,6 +20,7 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 | `transaction_log.enabled` | bool | `true` | `SPID_TRENTINO_TRANSACTION_LOG_ENABLED` | Write the SPID/CIE OIDC [transaction log](transaction-log.md). Disable only in development and tests. |
 | `transaction_log.table` | string | `spid_transaction_logs` | `SPID_TRENTINO_TRANSACTION_LOG_TABLE` | Table of the transaction log (read by the migration and the model). |
 | `transaction_log.retention_months` | int | `24` | `SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS` | Retention used by `spid:prune-logs`; values below 24 are raised to 24. |
+| `transaction_log.fail_closed` | bool | `false` | `SPID_TRENTINO_TRANSACTION_LOG_FAIL_CLOSED` | `true` aborts a login or token refresh whose log row cannot be written; `false` logs the failure and continues. Logout is never blocked. See [failure handling](transaction-log.md#failure-handling). |
 | `register_routes` | bool | `true` | none | `false` skips loading the package routes; register your own with the same names. |
 | `routes.login` | string | `/spid/login` | none | Path of the `spid.login` route (GET). |
 | `routes.callback` | string | `/spid/callback` | none | Path of the `spid.callback` route (GET). |

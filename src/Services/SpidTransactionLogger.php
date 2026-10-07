@@ -62,6 +62,17 @@ class SpidTransactionLogger
         ]);
     }
 
+    /**
+     * A login authenticated by AAC but refused by the level or identity
+     * provider policy.
+     *
+     * @param  array<array-key, mixed>  $data  reason, required, actual, issuer_source
+     */
+    public function logAuthenticationRejected(string $transactionId, array $data, ?string $sub): ?SpidTransactionLog
+    {
+        return $this->write($transactionId, 'authentication_rejected', $data, ['sub' => $sub]);
+    }
+
     /** @param array<array-key, mixed> $data */
     public function logTokenRequest(string $transactionId, array $data): ?SpidTransactionLog
     {

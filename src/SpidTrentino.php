@@ -6,6 +6,7 @@ namespace OfflineAgency\SpidLaravelTrentino;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
@@ -13,10 +14,13 @@ use Illuminate\Support\Facades\Session;
 use Jumbojett\OpenIDConnectClientException;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedIn;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedOut;
+use OfflineAgency\SpidLaravelTrentino\Exceptions\AuthenticationRejected;
 use OfflineAgency\SpidLaravelTrentino\OpenIdConnect\LaravelOpenIDConnectClient;
 use OfflineAgency\SpidLaravelTrentino\Services\SpidTransactionLogger;
+use OfflineAgency\SpidLaravelTrentino\Support\ClaimPath;
 use OfflineAgency\SpidLaravelTrentino\Support\LogRedactor;
 use OfflineAgency\SpidLaravelTrentino\Support\SessionExpiry;
+use OfflineAgency\SpidLaravelTrentino\Support\SpidLevel;
 use OfflineAgency\SpidLaravelTrentino\Support\TokenResponse;
 use stdClass;
 
@@ -89,6 +93,7 @@ class SpidTrentino
         $this->transactionLog->logUserInfoRequest($transactionId, ['authorization' => 'Bearer (access token)']);
         $userInfo = $this->oidc->requestUserInfo();
         $this->transactionLog->logUserInfoResponse($transactionId, self::toArray($userInfo));
+        $this->enforcePolicy($transactionId, self::toArray($userInfo));
         $user = new SpidTrentinoUser($userInfo instanceof stdClass ? $userInfo : []);
 
         if ($user->getFiscalNumber() === '') {
@@ -176,6 +181,65 @@ class SpidTrentino
     /**
      * Transaction log id of the current login, or a new one when the session has none.
      */
+    /**
+     * Rejects a login below required_acr or from an identity provider outside
+     * allowed_issuer_sources, before anything is stored in the session.
+     *
+     * @param  array<array-key, mixed>  $userInfo
+     *
+     * @throws AuthenticationRejected
+     */
+    private function enforcePolicy(string $transactionId, array $userInfo): void
+    {
+        $sources = ['id_token' => self::toArray($this->oidc->getVerifiedClaims()), 'userinfo' => $userInfo];
+        $acr = ClaimPath::first(Config::get('spid-laravel-trentino.claims.acr'), $sources);
+        $issuerSource = ClaimPath::first(Config::get('spid-laravel-trentino.claims.issuer_source'), $sources);
+        $required = SpidLevel::required(Config::get('spid-laravel-trentino.required_acr'));
+        $allowed = self::allowedIssuerSources();
+        $sub = is_string($userInfo['sub'] ?? null) ? $userInfo['sub'] : null;
+
+        $rejection = match (true) {
+            $required !== null && (SpidLevel::parse($acr) ?? 0) < $required => new AuthenticationRejected(
+                AuthenticationRejected::REASON_ACR,
+                $acr === null
+                    ? 'The SPID level of the login could not be determined (required: '.SpidLevel::name($required).').'
+                    : "The SPID level {$acr} is below the required ".SpidLevel::name($required).'.',
+            ),
+            $allowed !== null && ! in_array($issuerSource, $allowed, true) => new AuthenticationRejected(
+                AuthenticationRejected::REASON_ISSUER_SOURCE,
+                $issuerSource === null
+                    ? 'The identity provider of the login could not be determined.'
+                    : "The identity provider [{$issuerSource}] is not allowed.",
+            ),
+            default => null,
+        };
+
+        if ($rejection === null) {
+            return;
+        }
+
+        $this->transactionLog->logAuthenticationRejected($transactionId, [
+            'reason' => $rejection->reason,
+            'required' => $rejection->reason === AuthenticationRejected::REASON_ACR ? SpidLevel::name((int) $required) : implode(', ', $allowed ?? []),
+            'actual' => $rejection->reason === AuthenticationRejected::REASON_ACR ? $acr : $issuerSource,
+            'issuer_source' => $issuerSource,
+        ], $sub);
+
+        throw $rejection;
+    }
+
+    /**
+     * @return list<string>|null null when every identity provider is accepted
+     */
+    private static function allowedIssuerSources(): ?array
+    {
+        $configured = Config::get('spid-laravel-trentino.allowed_issuer_sources');
+        $values = is_array($configured) ? $configured : explode(',', is_string($configured) ? $configured : '');
+        $allowed = array_values(array_filter(array_map(fn (mixed $value): string => is_string($value) ? trim($value) : '', $values), fn (string $value): bool => $value !== ''));
+
+        return $allowed === [] ? null : $allowed;
+    }
+
     private function transactionId(): string
     {
         $transactionId = Session::get(SessionKeys::TRANSACTION_ID);

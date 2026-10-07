@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
 use Jumbojett\OpenIDConnectClientException;
 use LogicException;
+use OfflineAgency\SpidLaravelTrentino\Exceptions\AuthenticationRejected;
 use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoUser;
 
@@ -74,6 +75,13 @@ trait SpidAuthenticatesUsers
      */
     protected function spidLoginFailed(OpenIDConnectClientException $exception): RedirectResponse
     {
+        if ($exception instanceof AuthenticationRejected) {
+            Log::warning('[SPID] Login rejected', ['reason' => $exception->reason, 'message' => $exception->getMessage()]);
+
+            return Redirect::to(Config::string('spid-laravel-trentino.error_redirect_to'))
+                ->with(SessionKeys::ERROR, $exception->userMessage());
+        }
+
         Log::error('[SPID] Authentication failed', ['exception' => $exception]);
 
         return Redirect::to(Config::string('spid-laravel-trentino.error_redirect_to'))

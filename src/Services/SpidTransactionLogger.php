@@ -9,13 +9,15 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Str;
+use OfflineAgency\SpidLaravelTrentino\Exceptions\TransactionLogUnavailable;
 use OfflineAgency\SpidLaravelTrentino\Models\SpidTransactionLog;
 use Throwable;
 
 /**
  * Writes the OIDC messages of each SPID login to the transaction log required
- * by the SPID/CIE OIDC retention policy. Writing never breaks a login: a
- * failure is logged (without the payload) and ignored.
+ * by the SPID/CIE OIDC retention policy. A write failure is logged (without
+ * the payload) and, by default, ignored. With transaction_log.fail_closed it
+ * aborts the login or refresh instead; logout is never blocked.
  */
 class SpidTransactionLogger
 {
@@ -114,6 +116,8 @@ class SpidTransactionLogger
     /**
      * @param  array<array-key, mixed>  $payload
      * @param  array{authorizationCode?: ?string, jti?: ?string, iss?: ?string, sub?: ?string, iat?: ?CarbonImmutable, exp?: ?CarbonImmutable}  $fields
+     *
+     * @throws TransactionLogUnavailable when the write fails and fail_closed is on (never for logout)
      */
     private function write(string $transactionId, string $eventType, array $payload, array $fields = []): ?SpidTransactionLog
     {
@@ -145,6 +149,10 @@ class SpidTransactionLogger
                 'transaction_id' => $transactionId,
                 'exception' => $exception::class,
             ]);
+
+            if ($eventType !== 'logout' && filter_var(Config::get('spid-laravel-trentino.transaction_log.fail_closed', false), FILTER_VALIDATE_BOOL)) {
+                throw new TransactionLogUnavailable($eventType);
+            }
 
             return null;
         }

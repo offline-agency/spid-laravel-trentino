@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace OfflineAgency\SpidLaravelTrentino;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
@@ -22,6 +24,9 @@ use stdClass;
 
 class SpidTrentino
 {
+    /** Cache key holding the unix time of the last successful SPID login. */
+    public const string LAST_LOGIN_CACHE_KEY = 'spid-laravel-trentino:last-login';
+
     public function __construct(
         private readonly LaravelOpenIDConnectClient $oidc,
         private readonly SpidTransactionLogger $transactionLog,
@@ -97,6 +102,8 @@ class SpidTrentino
 
         $this->storeTokens($tokens);
         Session::put(SessionKeys::USER, $user->toArray());
+        // Read by spid:check-logs; kept in the cache so it survives a broken log table.
+        Cache::forever(self::LAST_LOGIN_CACHE_KEY, CarbonImmutable::now()->getTimestamp());
 
         Log::info('[SPID] User authenticated by AAC', LogRedactor::user($user));
         Event::dispatch(new SpidTrentinoLoggedIn($user));

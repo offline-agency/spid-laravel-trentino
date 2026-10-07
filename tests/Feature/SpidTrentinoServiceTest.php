@@ -14,6 +14,7 @@ use OfflineAgency\SpidLaravelTrentino\OpenIdConnect\LaravelOpenIDConnectClient;
 use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentino;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoUser;
+use OfflineAgency\SpidLaravelTrentino\Support\LogRedactor;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\User;
 use OfflineAgency\SpidLaravelTrentino\Tests\Support\FakeAacProvider;
 
@@ -129,6 +130,36 @@ it('never logs tokens, credentials or personal data', function () {
         expect($all)->not->toContain($secret);
     }
 });
+
+it('logs a callback diagnostic of the OIDC session state, even when the callback fails', function (bool $seeded) {
+    $logged = [];
+    Event::listen(MessageLogged::class, function (MessageLogged $message) use (&$logged): void {
+        $logged[$message->message] = $message->context;
+    });
+    Session::forget([
+        SessionKeys::OIDC_PREFIX.'openid_connect_state',
+        SessionKeys::OIDC_PREFIX.'openid_connect_code_verifier',
+    ]);
+    if ($seeded) {
+        FakeAacProvider::startAuthorization();
+    }
+    FakeAacProvider::fake();
+
+    try {
+        app(SpidTrentino::class)->handleCallback();
+    } catch (OpenIDConnectClientException) {
+        // Without state the callback fails; the diagnostic must still be logged.
+    }
+
+    expect($logged)->toHaveKey('[SPID] Callback diagnostic')
+        ->and($logged['[SPID] Callback diagnostic'])->toBe([
+            'session_id_hash' => LogRedactor::hash(Session::getId()),
+            'has_state' => $seeded,
+            'has_code_verifier' => $seeded,
+            'request_has_code' => true,
+            'request_has_state' => true,
+        ]);
+})->with(['session holds the OIDC state' => true, 'session lost the OIDC state' => false]);
 
 it('refreshes the access token with the stored refresh token', function () {
     FakeAacProvider::fake(['access_token' => 'new-access', 'refresh_token' => 'new-refresh', 'expires_in' => 600, 'id_token' => null]);

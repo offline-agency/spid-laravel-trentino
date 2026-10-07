@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
 use Jumbojett\OpenIDConnectClientException;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedIn;
@@ -42,6 +43,16 @@ class SpidTrentino
     public function handleCallback(): SpidTrentinoUser
     {
         Log::info('[SPID] Handling AAC callback');
+
+        // Logged before authenticate(), which consumes the state, so failed
+        // callbacks show whether the session still held the login round trip.
+        Log::info('[SPID] Callback diagnostic', [
+            'session_id_hash' => LogRedactor::hash(Session::getId()),
+            'has_state' => Session::has(SessionKeys::OIDC_PREFIX.'openid_connect_state'),
+            'has_code_verifier' => Session::has(SessionKeys::OIDC_PREFIX.'openid_connect_code_verifier'),
+            'request_has_code' => Request::has('code'),
+            'request_has_state' => Request::has('state'),
+        ]);
 
         $this->oidc->authenticate();
         $tokens = TokenResponse::from($this->oidc->getTokenResponse());

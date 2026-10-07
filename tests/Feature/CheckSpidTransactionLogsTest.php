@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use OfflineAgency\SpidLaravelTrentino\Console\Commands\CheckSpidTransactionLogs;
 use OfflineAgency\SpidLaravelTrentino\Models\SpidTransactionLog;
+use OfflineAgency\SpidLaravelTrentino\Services\SpidTransactionLogger;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentino;
 
 mutates(CheckSpidTransactionLogs::class);
@@ -22,9 +23,12 @@ function checkedRow(string $at): SpidTransactionLog
     return $row;
 }
 
-function lastLoginAt(string $at): void
+function lastLoginAt(string $at, bool $asString = false): void
 {
-    Cache::forever(SpidTrentino::LAST_LOGIN_CACHE_KEY, CarbonImmutable::parse($at)->getTimestamp());
+    $timestamp = CarbonImmutable::parse($at)->getTimestamp();
+
+    // Redis stores numbers unserialized and returns them as strings.
+    Cache::forever(SpidTrentino::LAST_LOGIN_CACHE_KEY, $asString ? (string) $timestamp : $timestamp);
 }
 
 it('passes on a healthy log', function () {
@@ -52,16 +56,16 @@ it('fails when the transaction log is disabled', function () {
         ->assertFailed();
 });
 
-it('fails when logins happened but no row was written in the window', function (?string $newestRow) {
+it('fails when logins happened but no row was written in the window', function (?string $newestRow, bool $asString) {
     if ($newestRow !== null) {
         checkedRow($newestRow);
     }
-    lastLoginAt('2026-03-02 11:00:00');
+    lastLoginAt('2026-03-02 11:00:00', $asString);
 
     $this->artisan('spid:check-logs')
         ->expectsOutputToContain('A SPID login succeeded at 2026-03-02 11:00:00 but no transaction log row was written since '.($newestRow ?? 'ever').'.')
         ->assertFailed();
-})->with(['stale rows' => '2026-03-01 09:00:00', 'no rows' => null]);
+})->with(['stale rows' => '2026-03-01 09:00:00', 'no rows' => null])->with(['int timestamp' => false, 'string timestamp (Redis)' => true]);
 
 it('allows rows written up to five minutes before the login marker', function () {
     checkedRow('2026-03-02 10:55:00');
@@ -125,3 +129,25 @@ it('rejects invalid options', function (array $options, string $message) {
     'sample text' => [['--sample' => 'all'], 'Invalid --sample [all]; use a number of rows, 0 or more.'],
     'sample negative' => [['--sample' => '-1'], 'Invalid --sample [-1]'],
 ]);
+
+it('fails when a write failed after the newest row, even without successful logins', function () {
+    config()->set('spid-laravel-trentino.transaction_log.fail_closed', true);
+    checkedRow('2026-03-02 11:00:00');
+    lastLoginAt('2026-03-02 11:00:05');
+    $this->travelTo(CarbonImmutable::parse('2026-03-02 11:30:00'));
+    SpidTransactionLog::creating(fn () => throw new RuntimeException('read-only database'));
+
+    app(SpidTransactionLogger::class)->logLogout('tx', ['sub' => 'subject']);
+
+    $this->artisan('spid:check-logs')
+        ->expectsOutputToContain('A transaction log write failed at 2026-03-02 11:30:00 and no row was written since 2026-03-02 11:00:00.')
+        ->assertFailed();
+});
+
+it('ignores write failures older than the newest row or the window', function (string $failure) {
+    checkedRow('2026-03-02 11:00:00');
+    lastLoginAt('2026-03-02 11:00:05');
+    Cache::forever(SpidTransactionLogger::LAST_WRITE_FAILURE_CACHE_KEY, (string) CarbonImmutable::parse($failure)->getTimestamp());
+
+    $this->artisan('spid:check-logs')->assertSuccessful();
+})->with(['recovered' => '2026-03-02 10:30:00', 'outside the window' => '2026-02-27 10:00:00']);

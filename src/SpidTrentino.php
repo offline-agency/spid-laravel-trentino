@@ -21,6 +21,7 @@ use OfflineAgency\SpidLaravelTrentino\Support\LogRedactor;
 use OfflineAgency\SpidLaravelTrentino\Support\SessionExpiry;
 use OfflineAgency\SpidLaravelTrentino\Support\TokenResponse;
 use stdClass;
+use Throwable;
 
 class SpidTrentino
 {
@@ -102,8 +103,7 @@ class SpidTrentino
 
         $this->storeTokens($tokens);
         Session::put(SessionKeys::USER, $user->toArray());
-        // Read by spid:check-logs; kept in the cache so it survives a broken log table.
-        Cache::forever(self::LAST_LOGIN_CACHE_KEY, CarbonImmutable::now()->getTimestamp());
+        $this->rememberLogin();
 
         Log::info('[SPID] User authenticated by AAC', LogRedactor::user($user));
         Event::dispatch(new SpidTrentinoLoggedIn($user));
@@ -183,6 +183,19 @@ class SpidTrentino
     /**
      * Transaction log id of the current login, or a new one when the session has none.
      */
+    /**
+     * Records the time of this login for spid:check-logs, in the cache so it
+     * survives a broken log table. Best effort: never fails the login.
+     */
+    private function rememberLogin(): void
+    {
+        try {
+            Cache::forever(self::LAST_LOGIN_CACHE_KEY, CarbonImmutable::now()->getTimestamp());
+        } catch (Throwable $exception) {
+            Log::warning('[SPID] Could not record the last login time', ['exception' => $exception::class]);
+        }
+    }
+
     private function transactionId(): string
     {
         $transactionId = Session::get(SessionKeys::TRANSACTION_ID);

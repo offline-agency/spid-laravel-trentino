@@ -105,10 +105,11 @@ php artisan spid:check-logs --max-age=2h --sample=100
 It fails when:
 
 - `transaction_log.enabled` is `false`, or the table does not exist;
-- a SPID login succeeded within `--max-age` (minutes, hours or days: `30m`, `24h`, `7d`) but the newest row is more than five minutes older than that login: rows are not being written;
+- a write failed within `--max-age` (minutes, hours or days: `30m`, `24h`, `7d`) and no row was written since: this also catches fail-closed outages, where no login succeeds;
+- a SPID login succeeded within `--max-age` but the newest row is more than five minutes older than that login: rows are not being written;
 - one of the `--sample` newest rows fails `verifyIntegrity()` or cannot be decrypted.
 
-When no login succeeded within `--max-age`, it prints a warning and succeeds, because it cannot tell whether writes work. The time of the last successful login is kept in the default cache store (key `spid-laravel-trentino:last-login`), so the check works even when the database is the problem; with several servers, use a shared cache store.
+When no login succeeded and no write failed within `--max-age`, it prints a warning and succeeds, because it cannot tell whether writes work. The times of the last successful login and of the last failed write are kept in the default cache store (keys `spid-laravel-trentino:last-login` and `spid-laravel-trentino:last-write-failure`). With several servers, use a shared cache store; for the check to work when the log database is down, the cache store must not live in that database (for example Redis rather than the `database` cache store).
 
 Schedule it with an alert:
 

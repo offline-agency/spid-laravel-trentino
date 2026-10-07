@@ -10,6 +10,7 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use OfflineAgency\SpidLaravelTrentino\Models\SpidTransactionLog;
+use OfflineAgency\SpidLaravelTrentino\Services\SpidTransactionLogger;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentino;
 
 /**
@@ -67,29 +68,45 @@ class CheckSpidTransactionLogs extends Command
 
     private function checkWrites(string $maxAge, int $minutes): bool
     {
-        $lastLogin = Cache::get(SpidTrentino::LAST_LOGIN_CACHE_KEY);
-        $lastLogin = is_int($lastLogin) ? CarbonImmutable::createFromTimestamp($lastLogin, CarbonImmutable::now()->getTimezone()) : null;
+        $windowStart = CarbonImmutable::now()->subMinutes($minutes);
+        $newest = SpidTransactionLog::query()->max('created_at');
+        $newest = is_string($newest) ? CarbonImmutable::parse($newest) : null;
+        $since = $newest?->format('Y-m-d H:i:s') ?? 'ever';
 
-        if ($lastLogin === null || $lastLogin->lessThan(CarbonImmutable::now()->subMinutes($minutes))) {
+        // Catches fail-closed outages too, where no login succeeds.
+        $failure = $this->cachedTime(SpidTransactionLogger::LAST_WRITE_FAILURE_CACHE_KEY);
+
+        if ($failure !== null && $failure->greaterThanOrEqualTo($windowStart) && ($newest === null || $failure->greaterThan($newest))) {
+            $this->error("A transaction log write failed at {$failure->format('Y-m-d H:i:s')} and no row was written since {$since}.");
+
+            return false;
+        }
+
+        $lastLogin = $this->cachedTime(SpidTrentino::LAST_LOGIN_CACHE_KEY);
+
+        if ($lastLogin === null || $lastLogin->lessThan($windowStart)) {
             $this->warn("No SPID login in the last {$maxAge}: cannot confirm that new rows are written.");
 
             return true;
         }
 
-        $newest = SpidTransactionLog::query()->max('created_at');
-        $newest = is_string($newest) ? CarbonImmutable::parse($newest) : null;
-
         if ($newest === null || $newest->lessThan($lastLogin->subSeconds(self::GRACE_SECONDS))) {
-            $this->error(sprintf(
-                'A SPID login succeeded at %s but no transaction log row was written since %s.',
-                $lastLogin->format('Y-m-d H:i:s'),
-                $newest?->format('Y-m-d H:i:s') ?? 'ever',
-            ));
+            $this->error("A SPID login succeeded at {$lastLogin->format('Y-m-d H:i:s')} but no transaction log row was written since {$since}.");
 
             return false;
         }
 
         return true;
+    }
+
+    /**
+     * A unix time stored in the cache; Redis returns numbers as strings.
+     */
+    private function cachedTime(string $key): ?CarbonImmutable
+    {
+        $timestamp = filter_var(Cache::get($key), FILTER_VALIDATE_INT);
+
+        return $timestamp === false ? null : CarbonImmutable::createFromTimestamp($timestamp, CarbonImmutable::now()->getTimezone());
     }
 
     private function checkSample(int $sample): bool

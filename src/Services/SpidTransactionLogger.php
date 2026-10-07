@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace OfflineAgency\SpidLaravelTrentino\Services;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
@@ -21,6 +22,9 @@ use Throwable;
  */
 class SpidTransactionLogger
 {
+    /** Cache key holding the unix time of the last failed write, read by spid:check-logs. */
+    public const string LAST_WRITE_FAILURE_CACHE_KEY = 'spid-laravel-trentino:last-write-failure';
+
     /** Token response fields replaced by their SHA-256: the spec does not require the raw tokens. */
     private const array REDACTED_TOKENS = ['access_token', 'refresh_token'];
 
@@ -149,6 +153,12 @@ class SpidTransactionLogger
                 'transaction_id' => $transactionId,
                 'exception' => $exception::class,
             ]);
+
+            try {
+                Cache::forever(self::LAST_WRITE_FAILURE_CACHE_KEY, CarbonImmutable::now()->getTimestamp());
+            } catch (Throwable) {
+                // Best effort: the failure itself is already in the error log.
+            }
 
             if ($eventType !== 'logout' && filter_var(Config::get('spid-laravel-trentino.transaction_log.fail_closed', false), FILTER_VALIDATE_BOOL)) {
                 throw new TransactionLogUnavailable($eventType);

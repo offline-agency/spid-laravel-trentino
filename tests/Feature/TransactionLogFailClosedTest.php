@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Cache\ArrayStore;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
@@ -54,6 +55,22 @@ function failWritesOf(string ...$eventTypes): void
             throw new RuntimeException('SQLSTATE[HY000]: insert into spid_transaction_logs values (secret-bound-value)');
         }
     });
+}
+
+/**
+ * Default cache store whose forever() fails, like a cache in an unavailable database.
+ */
+function useCacheThatCannotStoreForever(): void
+{
+    Cache::extend('cannot-store-forever', fn () => Cache::repository(new class extends ArrayStore
+    {
+        public function forever($key, $value): bool
+        {
+            throw new RuntimeException('cache down');
+        }
+    }));
+    config()->set('cache.stores.cannot-store-forever', ['driver' => 'cannot-store-forever']);
+    config()->set('cache.default', 'cannot-store-forever');
 }
 
 beforeEach(fn () => config()->set('spid-laravel-trentino.error_redirect_to', '/login-failed'));
@@ -159,4 +176,20 @@ it('records the time of the last successful login', function () {
     $this->get(failClosedLogin(fn ($uri) => $this->get($uri)));
 
     expect(Cache::get('spid-laravel-trentino:last-login'))->toBe(now()->getTimestamp());
+});
+
+it('keeps the login when the last-login marker cannot be written', function () {
+    $callback = failClosedLogin(fn ($uri) => $this->get($uri));
+    useCacheThatCannotStoreForever();
+
+    $this->get($callback)->assertRedirect('/');
+
+    $this->assertAuthenticated();
+});
+
+it('keeps writing when the write-failure marker cannot be stored', function () {
+    useCacheThatCannotStoreForever();
+    failWritesOf('logout');
+
+    expect(app(SpidTransactionLogger::class)->logLogout('tx', ['sub' => 'subject']))->toBeNull();
 });

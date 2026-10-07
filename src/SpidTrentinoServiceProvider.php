@@ -1,50 +1,75 @@
 <?php
 
+declare(strict_types=1);
+
 namespace OfflineAgency\SpidLaravelTrentino;
 
+use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
-use OfflineAgency\SpidLaravelTrentino\Console\Commands\PruneSpidTransactionLogs;
-use OfflineAgency\SpidLaravelTrentino\Services\SpidTransactionLogger;
+use OfflineAgency\SpidLaravelTrentino\Http\Middleware\EnsureValidSpidToken;
+use OfflineAgency\SpidLaravelTrentino\Http\Middleware\RefreshSpidTokenIfNeeded;
+use OfflineAgency\SpidLaravelTrentino\OpenIdConnect\LaravelOpenIDConnectClient;
 
 class SpidTrentinoServiceProvider extends ServiceProvider
 {
-  /**
-   * Bootstrap the application services.
-   */
-  public function boot(): void
-  {
-    if ($this->app->runningInConsole()) {
-      // Config publishing
-      $this->publishes([
-        __DIR__ . '/../config/config.php' => config_path('spid-laravel-trentino.php'),
-      ], 'config');
+    public function register(): void
+    {
+        $this->mergeConfigFrom(__DIR__.'/../config/spid-laravel-trentino.php', 'spid-laravel-trentino');
 
-      // Migration publishing
-      $this->publishes([
-        __DIR__ . '/../database/migrations/' => database_path('migrations'),
-      ], 'spid-migrations');
-
-      $this->commands([PruneSpidTransactionLogs::class]);
+        $this->app->bind(LaravelOpenIDConnectClient::class, fn (): LaravelOpenIDConnectClient => $this->makeClient());
+        $this->app->scoped(SpidTrentino::class);
     }
-    $this->loadRoutesFrom(__DIR__.'/../routes/spid-trentino-auth.php');
-    $this->loadViewsFrom(__DIR__ . '/../resources/views', 'spid-laravel-trentino');
 
-  }
+    public function boot(Router $router): void
+    {
+        $router->aliasMiddleware('spid.valid', EnsureValidSpidToken::class);
+        $router->aliasMiddleware('spid.refresh', RefreshSpidTokenIfNeeded::class);
 
-  /**
-   * Register the application services.
-   */
-  public function register(): void
-  {
-    // Merge default config
-    $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'spid-laravel-trentino');
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'spid-laravel-trentino');
 
-    // Bind the main service to the container
-    $this->app->singleton('spid-laravel-trentino.auth', function ($app) {
-      return $app->make(SpidTrentino::class);
-    });
+        if (Config::boolean('spid-laravel-trentino.register_routes', true)) {
+            $this->loadRoutesFrom(__DIR__.'/../routes/spid-trentino-auth.php');
+        }
 
-    // Transaction logger singleton
-    $this->app->singleton(SpidTransactionLogger::class, fn () => new SpidTransactionLogger());
-  }
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../config/spid-laravel-trentino.php' => $this->app->configPath('spid-laravel-trentino.php'),
+            ], 'spid-laravel-trentino-config');
+
+            $this->publishes([
+                __DIR__.'/../resources/views' => $this->app->resourcePath('views/vendor/spid-laravel-trentino'),
+            ], 'spid-laravel-trentino-views');
+
+            $this->publishesMigrations([
+                __DIR__.'/../database/migrations' => $this->app->databasePath('migrations'),
+            ], 'spid-laravel-trentino-migrations');
+        }
+    }
+
+    private function makeClient(): LaravelOpenIDConnectClient
+    {
+        $secret = Config::get('spid-laravel-trentino.client_secret');
+        $cacheTtl = Config::get('spid-laravel-trentino.cache_ttl');
+        $redirectUri = Config::get('spid-laravel-trentino.redirect_uri');
+        $scopes = preg_split('/\s+/', Config::string('spid-laravel-trentino.scopes'), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        $client = new LaravelOpenIDConnectClient(
+            Config::string('spid-laravel-trentino.provider_url'),
+            Config::string('spid-laravel-trentino.client_id'),
+            is_string($secret) && $secret !== '' ? $secret : null,
+            is_numeric($cacheTtl) ? (int) $cacheTtl : 3600,
+            filter_var(Config::get('spid-laravel-trentino.session_fallback'), FILTER_VALIDATE_BOOL),
+        );
+
+        $client->setRedirectURL(is_string($redirectUri) && $redirectUri !== ''
+            ? $redirectUri
+            : URL::to(Config::string('spid-laravel-trentino.routes.callback')));
+        // "openid" is always added by the client.
+        $client->addScope(array_values(array_diff($scopes, ['openid'])));
+        $client->setCodeChallengeMethod('S256');
+
+        return $client;
+    }
 }

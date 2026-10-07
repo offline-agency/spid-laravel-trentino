@@ -1,29 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace OfflineAgency\SpidLaravelTrentino\Events;
 
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Foundation\Events\Dispatchable;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoUser;
 
+/**
+ * Dispatched after a successful AAC callback, before the local user is authenticated.
+ * The DTO is a plain serializable object, so SerializesModels is not needed.
+ */
 class SpidTrentinoLoggedIn
 {
-  use Dispatchable, SerializesModels;
+    public function __construct(public readonly SpidTrentinoUser $user) {}
 
-  public SpidTrentinoUser $user;
-
-  public function __construct($user)
-  {
-    $this->setUser($user);
-  }
-
-  public function getUser(): SpidTrentinoUser
-  {
-    return $this->user;
-  }
-
-  public function setUser(SpidTrentinoUser $user): void
-  {
-    $this->user = $user;
-  }
+    public function getUser(): SpidTrentinoUser
+    {
+        return $this->user;
+    }
 }

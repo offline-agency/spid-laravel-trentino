@@ -20,7 +20,13 @@ Route::middleware(['web', 'auth', 'spid.refresh', 'spid.valid'])->group(function
 Order matters:
 
 - `web` starts the session both middleware read.
-- `auth` sends guests to your login page (store the intended URL there).
+- `auth` sends guests to the route named `login` and stores the intended URL. If SPID is your only login, point it at the SPID login in `bootstrap/app.php`:
+
+  ```php
+  ->withMiddleware(function (\Illuminate\Foundation\Configuration\Middleware $middleware): void {
+      $middleware->redirectGuestsTo(fn () => route('spid.login'));
+  })
+  ```
 - `spid.refresh` must run **before** `spid.valid`: a token about to expire is refreshed first, and a failed refresh is detected by `spid.valid` on the same request.
 
 ## `spid.refresh`: RefreshSpidTokenIfNeeded

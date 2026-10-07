@@ -11,7 +11,7 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 | Key | Type | Default | Env var | Effect |
 |-----|------|---------|---------|--------|
 | `client_id` | string | `null` | `SPID_TRENTINO_CLIENT_ID` | OIDC client id. Required: resolving the OIDC client throws an `InvalidArgumentException` when it is `null`. |
-| `client_secret` | string or null | `null` | `SPID_TRENTINO_CLIENT_SECRET` | Client secret. An empty string is treated as `null` (public client, PKCE only). |
+| `client_secret` | string or null | `null` | `SPID_TRENTINO_CLIENT_SECRET` | Client secret. An empty string is treated as `null` (public client, PKCE only; refresh is untested, see [KI-12](known-issues.md#ki-12-public-clients-send-an-empty-secret-when-refreshing)). |
 | `redirect_uri` | string or null | `null` | `SPID_TRENTINO_REDIRECT_URI` | Redirect URI sent to AAC. `null` or empty uses `URL::to()` of `routes.callback`. Must match the URI registered on AAC. |
 | `provider_url` | string | `https://aac-test.cloud-test.tndigit.it` | `SPID_TRENTINO_PROVIDER_URL` | AAC base URL. Discovery is read from `{provider_url}/.well-known/openid-configuration`; it is also the expected ID token issuer. |
 | `scopes` | string | `openid profile.codicefiscale.me email offline_access` | `SPID_TRENTINO_SCOPES` | Space separated scopes. `openid` is removed from the list and always added by the client, so it is never sent twice. |

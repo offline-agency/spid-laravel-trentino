@@ -63,7 +63,7 @@ SPID_TRENTINO_REDIRECT_TO=
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `SPID_TRENTINO_CLIENT_ID` | Yes | none | OIDC client id issued by AAC. When the variable is not set, resolving the OIDC client throws an `InvalidArgumentException` (the value must be a string). |
-| `SPID_TRENTINO_CLIENT_SECRET` | No | none | Client secret. Leave empty for a public client (PKCE only). |
+| `SPID_TRENTINO_CLIENT_SECRET` | No | none | Client secret. Leave empty for a public client (PKCE only; requires AAC to advertise `S256`). Token refresh with a public client is untested, see [KI-12](known-issues.md#ki-12-public-clients-send-an-empty-secret-when-refreshing). |
 | `SPID_TRENTINO_REDIRECT_URI` | No | absolute URL of `routes.callback` | Must be identical to the redirect URI registered on AAC. |
 | `SPID_TRENTINO_PROVIDER_URL` | No | `https://aac-test.cloud-test.tndigit.it` | AAC base URL. The default is the **test** environment. |
 | `SPID_TRENTINO_SCOPES` | No | `openid profile.codicefiscale.me email offline_access` | Space separated scopes. |
@@ -100,7 +100,7 @@ Add the login button to a view:
 
 ### Registering the middleware manually (Laravel 12 and 13)
 
-Only needed if you disabled package discovery for this package. Laravel 11 and later have no `app/Http/Kernel.php`; register the aliases in `bootstrap/app.php`:
+The aliases are registered in the service provider's `boot()`, so they come with the provider: if you disabled package discovery, registering the provider (`bootstrap/providers.php`) is enough. Laravel 11 and later have no `app/Http/Kernel.php`; to use different alias names, add them in `bootstrap/app.php`:
 
 ```php
 use Illuminate\Foundation\Configuration\Middleware;
@@ -115,7 +115,7 @@ use OfflineAgency\SpidLaravelTrentino\Http\Middleware\RefreshSpidTokenIfNeeded;
 })
 ```
 
-In that case also register the provider and the facade yourself (`bootstrap/providers.php` and `config/app.php` aliases).
+Without package discovery, also register the facade alias `SpidTrentino` yourself if you use it.
 
 ## Next steps
 

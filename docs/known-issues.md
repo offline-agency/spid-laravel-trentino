@@ -57,8 +57,16 @@ There are no Critical issues open.
 - **Severity:** Medium
 - **Location:** `src/OpenIdConnect/LaravelOpenIDConnectClient.php:210` (`setSessionKey()`), `vendor/jumbojett/openid-connect-php/src/OpenIDConnectClient.php:323`
 - **Current behavior:** state, nonce and PKCE verifier are stored under fixed session keys. Starting a second login (for example in another tab) overwrites them.
-- **Impact:** the first tab's callback fails with `Unable to determine state`, and the user sees the login error page.
+- **Impact:** the first tab's callback fails and the user sees the login error page. Because the code is exchanged before the state is compared ([KI-07](#ki-07-the-authorization-code-is-exchanged-before-the-state-is-checked)), the logged reason is usually AAC's token error (the PKCE verifier no longer matches); it is `Unable to determine state` only when the exchange succeeds.
 - **Suggested fix:** store pending authorizations keyed by state value and look them up on callback.
+
+### KI-12: Public clients send an empty secret when refreshing
+
+- **Severity:** Medium
+- **Location:** `vendor/jumbojett/openid-connect-php/src/OpenIDConnectClient.php:1000-1001` (`refreshToken()`), `src/SpidTrentinoServiceProvider.php` (`makeClient()` passes `null` for an empty secret)
+- **Current behavior:** for the code exchange, jumbojett drops client authentication when PKCE is used and there is no secret. `refreshToken()` has no such branch: with the default `client_secret_basic` method it sends `Authorization: Basic` with the client id and an empty secret.
+- **Impact:** with a public client (empty `SPID_TRENTINO_CLIENT_SECRET`), AAC may reject every refresh; users are then sent back to the SPID login when the access token expires. Not tested against AAC.
+- **Suggested fix:** for public clients, override `refreshToken()` to send `client_id` in the body without an `Authorization` header; until then, prefer a confidential client.
 
 ### KI-06: Key rotation that keeps the same key id is not retried
 

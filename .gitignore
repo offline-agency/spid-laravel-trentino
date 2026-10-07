@@ -6,3 +6,4 @@ composer.lock
 /coverage
 /build
 .DS_Store
+/docs/superpowers

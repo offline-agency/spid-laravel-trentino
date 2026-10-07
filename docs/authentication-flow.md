@@ -20,7 +20,8 @@ sequenceDiagram
     O->>A: GET /.well-known/openid-configuration (cached for cache_ttl)
     A-->>O: discovery document
     O->>L: put state, nonce and code verifier (keys prefixed spid_trentino_oidc_)
-    O-->>C: RedirectResponse to authorization_endpoint (state, nonce, code_challenge S256)
+    O-->>S: RedirectResponse to authorization_endpoint (state, nonce, code_challenge S256)
+    S-->>C: RedirectResponse
     C-->>B: 302 to AAC
     B->>A: user authenticates with SPID
     A-->>B: 302 to /spid/callback?code=...&state=...
@@ -44,9 +45,10 @@ sequenceDiagram
     C->>S: handleCallback()
     S->>S: log [SPID] Callback diagnostic
     S->>O: authenticate()
-    O->>L: compare state, read nonce and code_verifier
+    O->>L: read code_verifier
     O->>A: POST token_endpoint (code, code_verifier, client auth)
     A-->>O: access_token, id_token, refresh_token, expires_in
+    O->>L: compare state, read nonce
     O->>A: GET jwks_uri (cached for cache_ttl)
     O->>O: verify ID token signature and claims (iss, aud, sub, nonce, exp, nbf, at_hash)
     O->>L: forget state, nonce, code_verifier
@@ -64,6 +66,7 @@ sequenceDiagram
 Details:
 
 - `authenticate()` passes only the `code`, `state`, `error` and `error_description` request parameters (as strings) to jumbojett. A callback without `code` and `error` starts a new authorization request, so the browser is sent back to AAC.
+- jumbojett exchanges the code first and compares `state` afterwards ([KI-07](known-issues.md#ki-07-the-authorization-code-is-exchanged-before-the-state-is-checked)); a lost session therefore usually fails at the token request, see [troubleshooting](troubleshooting.md#login-fails-after-returning-from-aac-session-lost-second-tab-reloaded-callback).
 - ID token verification is done by jumbojett with the keys from the discovered `jwks_uri`. The package adds stricter checks: string `iss` and `sub`, the client id in `aud`, and a mandatory integer `exp`. See [security](security.md#id-token-validation).
 - The token response must be a JSON object with string `access_token` and `id_token`; anything else (for example a gateway error page) fails the login.
 - A userinfo response without `enti-codicefiscale.fiscalCode` (or with only whitespace) fails the login with `AAC did not return a fiscal code for the authenticated user.`

@@ -66,6 +66,14 @@ return [
     ],
 
     /*
+    | Rate limit of the login and callback routes, per client IP and route, as
+    | "max" or "max,decayMinutes". Every request to these routes writes a
+    | transaction log row kept for 24 months. null disables the limit. Your
+    | own routes can use it with ThrottleRequests::using('spid-laravel-trentino').
+    */
+    'throttle' => env('SPID_TRENTINO_THROTTLE', '20,1'),
+
+    /*
     | Set to false to register your own routes named spid.login, spid.callback
     | and spid.logout.
     */

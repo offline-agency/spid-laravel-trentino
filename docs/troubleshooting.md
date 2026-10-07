@@ -97,6 +97,14 @@ Two different situations:
 - **Cause:** `auth.providers.users.model` points to a class that is not an authenticatable Eloquent model.
 - **Fix:** see [user model](user-model.md).
 
+## Login rejected for the SPID level or the identity provider
+
+- **Message:** `Your SPID login does not meet the security level required by this service.` or `Your identity provider is not accepted by this service.`
+- **Log:** `[SPID] Login rejected` with `reason` (`acr` or `issuer_source`) and one of:
+  - `The SPID level <acr> is below the required SpidLn.`: the user logged in at a lower level; AAC should have asked for the required one (check that the login request carries `acr_values`).
+  - `The SPID level of the login could not be determined (required: SpidLn).`: neither the ID token `acr` nor `enti-acr.acr` carries a SPID level. Inspect the `token_response` and `userinfo_response` rows of the [transaction log](transaction-log.md) and adjust `claims.acr`.
+  - `The identity provider [<source>] is not allowed.` or `The identity provider of the login could not be determined.`: check `allowed_issuer_sources` and `claims.issuer_source`.
+
 ## Other errors
 
 | Message | Cause | Fix |

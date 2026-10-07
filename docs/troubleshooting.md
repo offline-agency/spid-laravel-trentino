@@ -112,3 +112,4 @@ Two different situations:
 | `No application encryption key has been specified.` | `APP_KEY` missing (needed to encrypt cookies and sessions) | `php artisan key:generate` |
 | `Route [spid.login] not defined.` | `register_routes` is `false` and no route is named `spid.login` | Register your routes with the package names, see [extending](extending.md#registering-your-own-routes) |
 | Changes to `.env` have no effect | Configuration is cached | `php artisan config:clear` |
+| `spid-laravel-trentino.throttle must be "max" or "max,decayMinutes" ...` (every request and artisan command) | `SPID_TRENTINO_THROTTLE` has an invalid value, such as `0` or `true` | Use `20,1`, `60,1` or `null`. If the value is in a cached configuration, delete `bootstrap/cache/config.php` (or fix `.env` and run `php artisan config:cache` once boot works) |

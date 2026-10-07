@@ -60,19 +60,23 @@ class SpidTrentinoServiceProvider extends ServiceProvider
     /**
      * Limits each client IP on each SPID route: every request to the login
      * and callback routes writes a transaction log row kept for 24 months.
+     * The limiter is always registered (unlimited when throttle is null), so
+     * routes carrying the middleware keep working when the limit is turned
+     * off, including cached routes and routes the application registers.
      */
     private function registerRateLimiter(): void
     {
         $throttle = RouteThrottle::parse(Config::get('spid-laravel-trentino.throttle'));
 
-        if ($throttle === null) {
-            return;
-        }
+        RateLimiter::for(RouteThrottle::LIMITER, function (Request $request) use ($throttle): Limit {
+            if ($throttle === null) {
+                return Limit::none();
+            }
 
-        [$max, $decayMinutes] = $throttle;
+            [$max, $decayMinutes] = $throttle;
 
-        RateLimiter::for(RouteThrottle::LIMITER, fn (Request $request): Limit => Limit::perMinutes($decayMinutes, $max)
-            ->by($request->route()?->getName().'|'.$request->ip()));
+            return Limit::perMinutes($decayMinutes, $max)->by($request->route()?->getName().'|'.$request->ip());
+        });
     }
 
     private function makeClient(): LaravelOpenIDConnectClient

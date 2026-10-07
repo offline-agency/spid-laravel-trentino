@@ -9,9 +9,9 @@ use OfflineAgency\SpidLaravelTrentino\Http\Controllers\SpidAuthController;
 use OfflineAgency\SpidLaravelTrentino\Support\RouteThrottle;
 
 $controller = Config::get('spid-laravel-trentino.auth_controller', SpidAuthController::class);
-$throttle = RouteThrottle::parse(Config::get('spid-laravel-trentino.throttle')) !== null
-    ? [ThrottleRequests::using(RouteThrottle::LIMITER)]
-    : [];
+
+// Always attached: the limiter itself is unlimited when throttle is null.
+$throttle = ThrottleRequests::using(RouteThrottle::LIMITER);
 
 Route::middleware('web')->group(function () use ($controller, $throttle): void {
     Route::get(Config::string('spid-laravel-trentino.routes.login'), [$controller, 'login'])->name('spid.login')->middleware($throttle);

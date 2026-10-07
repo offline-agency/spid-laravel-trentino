@@ -32,7 +32,7 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 
 ## Routes
 
-The routes file is loaded only when `register_routes` is `true`. All three routes use the `web` middleware group; `spid.login` and `spid.callback` are also rate limited by `throttle`:
+The routes file is loaded only when `register_routes` is `true`. All three routes use the `web` middleware group; `spid.login` and `spid.callback` also carry the `spid-laravel-trentino` rate limiter, which applies `throttle` (and lets every request through when it is `null`):
 
 | Method | Path (default) | Name | Controller method |
 |--------|----------------|------|-------------------|

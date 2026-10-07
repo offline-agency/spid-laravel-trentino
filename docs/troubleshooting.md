@@ -97,6 +97,12 @@ Two different situations:
 - **Cause:** `auth.providers.users.model` points to a class that is not an authenticatable Eloquent model.
 - **Fix:** see [user model](user-model.md).
 
+## 429 Too Many Requests on the SPID login or callback
+
+- **Cause:** the client IP sent more requests to `spid.login` or `spid.callback` than `throttle` allows (default 20 per minute on each route).
+- **If every user hits it at once:** the application sees the proxy's address instead of the client's. Configure [trusted proxies](https://laravel.com/docs/requests#configuring-trusted-proxies).
+- **If one office hits it:** many users share one public address; raise the limit (`SPID_TRENTINO_THROTTLE="60,1"`). See [security](security.md#rate-limiting).
+
 ## Other errors
 
 | Message | Cause | Fix |

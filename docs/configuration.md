@@ -20,6 +20,7 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 | `transaction_log.enabled` | bool | `true` | `SPID_TRENTINO_TRANSACTION_LOG_ENABLED` | Write the SPID/CIE OIDC [transaction log](transaction-log.md). Disable only in development and tests. |
 | `transaction_log.table` | string | `spid_transaction_logs` | `SPID_TRENTINO_TRANSACTION_LOG_TABLE` | Table of the transaction log (read by the migration and the model). |
 | `transaction_log.retention_months` | int | `24` | `SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS` | Retention used by `spid:prune-logs`; values below 24 are raised to 24. |
+| `throttle` | string, int or null | `'20,1'` | `SPID_TRENTINO_THROTTLE` | Rate limit of `spid.login` and `spid.callback`, per client IP and route: `"max"` or `"max,decayMinutes"`. `null`, `false` or an empty string disables it; any other invalid value throws an `InvalidArgumentException` at boot. See [security](security.md#rate-limiting). |
 | `register_routes` | bool | `true` | none | `false` skips loading the package routes; register your own with the same names. |
 | `routes.login` | string | `/spid/login` | none | Path of the `spid.login` route (GET). |
 | `routes.callback` | string | `/spid/callback` | none | Path of the `spid.callback` route (GET). |
@@ -31,7 +32,7 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 
 ## Routes
 
-The routes file is loaded only when `register_routes` is `true`. All three routes use the `web` middleware group:
+The routes file is loaded only when `register_routes` is `true`. All three routes use the `web` middleware group; `spid.login` and `spid.callback` are also rate limited by `throttle`:
 
 | Method | Path (default) | Name | Controller method |
 |--------|----------------|------|-------------------|

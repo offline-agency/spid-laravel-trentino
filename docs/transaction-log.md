@@ -78,6 +78,10 @@ foreach ($records as $record) {
 SpidTransactionLog::query()->where('sub', $subject)->latest()->get();
 ```
 
+## Unauthenticated requests
+
+`authentication_request` and `authentication_response` are written before the user is authenticated, so the login and callback routes are [rate limited](security.md#rate-limiting) to keep bots from growing the log. An `authentication_request` without a callback (the user never came back from AAC) is kept for the same retention as every other row. Whether such orphan rows may be pruned earlier is a decision for your data protection officer; the package does not do it.
+
 ## Pruning
 
 ```bash

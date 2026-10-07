@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 - Transaction log for the SPID/CIE OIDC retention policy (based on #3): every OIDC message of a login (authentication, token, userinfo, refresh, logout) is stored encrypted with an HMAC-SHA256, grouped by transaction id; `spid:prune-logs` command with a 24-month floor; `transaction_log` configuration; `SessionKeys::TRANSACTION_ID`. Access and refresh tokens are stored only as SHA-256 hashes and the client secret never.
+- `throttle` option (default `'20,1'`): the `spid.login` and `spid.callback` routes are rate limited per client IP and route through the `spid-laravel-trentino` rate limiter, so unauthenticated requests cannot grow the transaction log without bound (KI-16). Set it to `null` to disable the limit; see [UPGRADE.md](UPGRADE.md).
 
 ## [2.1.0] - 2026-10-07
 

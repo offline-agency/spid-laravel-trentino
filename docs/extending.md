@@ -145,14 +145,19 @@ Set `register_routes` to `false` and define the routes yourself, keeping the nam
 
 ```php
 use App\Http\Controllers\Auth\SpidController;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('web')->prefix('accesso')->group(function () {
-    Route::get('/spid', [SpidController::class, 'login'])->name('spid.login');
-    Route::get('/spid/ritorno', [SpidController::class, 'callback'])->name('spid.callback');
+    $throttle = ThrottleRequests::using('spid-laravel-trentino');
+
+    Route::get('/spid', [SpidController::class, 'login'])->name('spid.login')->middleware($throttle);
+    Route::get('/spid/ritorno', [SpidController::class, 'callback'])->name('spid.callback')->middleware($throttle);
     Route::post('/spid/esci', [SpidController::class, 'logout'])->name('spid.logout');
 });
 ```
+
+The `spid-laravel-trentino` rate limiter applies the `throttle` setting (see [rate limiting](security.md#rate-limiting)); it is keyed by route name and client IP, so keep it on these two routes only.
 
 Remember to register the new callback URL on AAC (and set `SPID_TRENTINO_REDIRECT_URI`, or leave it empty and update `routes.callback` so the default matches).
 

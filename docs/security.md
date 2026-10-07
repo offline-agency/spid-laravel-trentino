@@ -49,6 +49,15 @@ The package does not validate the ID token a second time with another library. G
 - **Open redirects:** post-login and post-logout targets come from configuration (`redirect_to`, `logout_redirect_to`, `error_redirect_to`) or from the intended URL stored server side by Laravel; no target is read from request parameters.
 - The logout ends the application session only; the SPID session at the identity provider stays active.
 
+## Rate limiting
+
+Every request to `spid.login` and `spid.callback` writes a [transaction log](transaction-log.md) row that must be kept for at least 24 months, and neither route needs authentication. The package therefore limits both routes with the `spid-laravel-trentino` rate limiter: by default 20 requests per minute for each client IP on each route (`throttle` = `'20,1'`). A user needs one request on each route per login, so an IP address can complete 20 logins per minute. Throttled requests get a `429 Too Many Requests` response and write no log row. Logout is not limited.
+
+- The limit is keyed by `Request::ip()`. Behind a load balancer or reverse proxy, configure [trusted proxies](https://laravel.com/docs/requests#configuring-trusted-proxies); otherwise every user shares the proxy's address and the limit applies to all of them together.
+- Offices where many users share one public address (municipal networks behind NAT) may need a higher limit, for example `SPID_TRENTINO_THROTTLE="60,1"`.
+- The limiter uses the default cache store; with several servers, use a shared store so the limit is global.
+- If you register your own routes (`register_routes` = `false`), add the limiter yourself with `->middleware(ThrottleRequests::using('spid-laravel-trentino'))`.
+
 ## Transaction log
 
 The SPID/CIE OIDC transaction log stores the OIDC messages of every login for at least 24 months, encrypted with `APP_KEY` and signed with an HMAC; access and refresh tokens only as SHA-256 hashes, the client secret never. Its searchable columns (`sub`, authorization code, IP address, user agent) are stored in clear for indexing: restrict access to the table. See [transaction log](transaction-log.md).
@@ -76,3 +85,4 @@ The SPID/CIE OIDC transaction log stores the OIDC messages of every login for at
 - With several servers, use a shared session store and a shared cache store.
 - Keep the server clock in sync (NTP); ID token checks allow 300 seconds of skew.
 - Protect routes with `['web', 'auth', 'spid.refresh', 'spid.valid']`.
+- Keep the `throttle` limit on (configure trusted proxies so it sees real client addresses).

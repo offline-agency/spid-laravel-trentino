@@ -97,6 +97,12 @@ Two different situations:
 - **Cause:** `auth.providers.users.model` points to a class that is not an authenticatable Eloquent model.
 - **Fix:** see [user model](user-model.md).
 
+## 429 Too Many Requests on the SPID login or callback
+
+- **Cause:** the client IP sent more requests to `spid.login` or `spid.callback` than `throttle` allows (default 20 per minute on each route).
+- **If every user hits it at once:** the application sees the proxy's address instead of the client's. Configure [trusted proxies](https://laravel.com/docs/requests#configuring-trusted-proxies).
+- **If one office hits it:** many users share one public address; raise the limit (`SPID_TRENTINO_THROTTLE="60,1"`). See [security](security.md#rate-limiting).
+
 ## Other errors
 
 | Message | Cause | Fix |
@@ -106,3 +112,4 @@ Two different situations:
 | `No application encryption key has been specified.` | `APP_KEY` missing (needed to encrypt cookies and sessions) | `php artisan key:generate` |
 | `Route [spid.login] not defined.` | `register_routes` is `false` and no route is named `spid.login` | Register your routes with the package names, see [extending](extending.md#registering-your-own-routes) |
 | Changes to `.env` have no effect | Configuration is cached | `php artisan config:clear` |
+| `spid-laravel-trentino.throttle must be "max" or "max,decayMinutes" ...` (every request and artisan command) | `SPID_TRENTINO_THROTTLE` has an invalid value, such as `0` or `true` | Use `20,1`, `60,1` or `null`. If the value is in a cached configuration, delete `bootstrap/cache/config.php` (or fix `.env` and run `php artisan config:cache` once boot works) |

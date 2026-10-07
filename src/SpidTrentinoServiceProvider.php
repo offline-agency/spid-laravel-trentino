@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace OfflineAgency\SpidLaravelTrentino;
 
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use OfflineAgency\SpidLaravelTrentino\Console\Commands\PruneSpidTransactionLogs;
 use OfflineAgency\SpidLaravelTrentino\Http\Middleware\EnsureValidSpidToken;
 use OfflineAgency\SpidLaravelTrentino\Http\Middleware\RefreshSpidTokenIfNeeded;
 use OfflineAgency\SpidLaravelTrentino\OpenIdConnect\LaravelOpenIDConnectClient;
+use OfflineAgency\SpidLaravelTrentino\Support\RouteThrottle;
 
 class SpidTrentinoServiceProvider extends ServiceProvider
 {
@@ -29,6 +33,8 @@ class SpidTrentinoServiceProvider extends ServiceProvider
         $router->aliasMiddleware('spid.refresh', RefreshSpidTokenIfNeeded::class);
 
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'spid-laravel-trentino');
+
+        $this->registerRateLimiter();
 
         if (Config::boolean('spid-laravel-trentino.register_routes', true)) {
             $this->loadRoutesFrom(__DIR__.'/../routes/spid-trentino-auth.php');
@@ -49,6 +55,28 @@ class SpidTrentinoServiceProvider extends ServiceProvider
 
             $this->commands([PruneSpidTransactionLogs::class]);
         }
+    }
+
+    /**
+     * Limits each client IP on each SPID route: every request to the login
+     * and callback routes writes a transaction log row kept for 24 months.
+     * The limiter is always registered (unlimited when throttle is null), so
+     * routes carrying the middleware keep working when the limit is turned
+     * off, including cached routes and routes the application registers.
+     */
+    private function registerRateLimiter(): void
+    {
+        $throttle = RouteThrottle::parse(Config::get('spid-laravel-trentino.throttle'));
+
+        RateLimiter::for(RouteThrottle::LIMITER, function (Request $request) use ($throttle): Limit {
+            if ($throttle === null) {
+                return Limit::none();
+            }
+
+            [$max, $decayMinutes] = $throttle;
+
+            return Limit::perMinutes($decayMinutes, $max)->by($request->route()?->getName().'|'.$request->ip());
+        });
     }
 
     private function makeClient(): LaravelOpenIDConnectClient

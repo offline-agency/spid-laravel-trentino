@@ -1,5 +1,11 @@
 # Upgrade Guide
 
+## Unreleased
+
+### Rate limiting of the SPID routes (behavior change)
+
+`spid.login` and `spid.callback` are now limited to 20 requests per minute for each client IP on each route; further requests get `429 Too Many Requests`. Configure [trusted proxies](https://laravel.com/docs/requests#configuring-trusted-proxies) if the application runs behind a proxy, raise the limit with `SPID_TRENTINO_THROTTLE="60,1"` if many users share one address, or set `SPID_TRENTINO_THROTTLE=null` to keep the previous behavior. See [rate limiting](docs/security.md#rate-limiting).
+
 ## Upgrading from 1.x to 2.0
 
 2.0 fixes several bugs that made 1.x unusable in practice (the `spid.valid` middleware logged every user out, `redirect_to` was never applied, the facade did not resolve). Most applications only need the steps marked **required**.

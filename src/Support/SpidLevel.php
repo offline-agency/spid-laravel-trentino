@@ -20,16 +20,13 @@ final class SpidLevel
      */
     public static function parse(mixed $value): ?int
     {
-        if (is_int($value)) {
-            $value = (string) $value;
-        }
-
-        if (! is_string($value) || preg_match('#^(?:(?:https://www\.spid\.gov\.it/)?spidl([1-3])|([1-3]))$#i', trim($value), $match) !== 1) {
+        // Bare numbers are not SPID levels: other schemes (eIDAS, AAC's own) use them too.
+        if (! is_string($value) || preg_match('#^(?:https://www\.spid\.gov\.it/)?spidl([1-3])$#i', trim($value), $match) !== 1) {
             return null;
         }
 
         /** @var int<1, 3> */
-        return (int) ($match[1] !== '' ? $match[1] : $match[2]);
+        return (int) $match[1];
     }
 
     /**

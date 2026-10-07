@@ -15,13 +15,11 @@ it('parses short and URI forms', function (mixed $value, int $level) {
     ['https://www.spid.gov.it/SpidL1', 1],
     ['https://www.spid.gov.it/SpidL2', 2],
     ['HTTPS://WWW.SPID.GOV.IT/SPIDL3', 3],
-    [2, 2],
-    ['3', 3],
 ]);
 
 it('treats unknown values as unknown', function (mixed $value) {
     expect(SpidLevel::parse($value))->toBeNull();
-})->with([null, '', 'SpidL4', 'SpidL0', 'L2', 'https://example.test/SpidL2', 'https://www.spid.gov.it/SpidL2/extra', 'https://www.spid.gov.it/2', 4, 0, [['SpidL2']], 2.0]);
+})->with([null, '', 'SpidL4', 'SpidL0', 'L2', 'https://example.test/SpidL2', 'https://www.spid.gov.it/SpidL2/extra', 'https://www.spid.gov.it/2', 4, 0, [['SpidL2']], 2.0, 2, '3', ' 1 ']);
 
 it('orders levels and builds the acr_values URI', function () {
     expect(SpidLevel::parse('SpidL3'))->toBeGreaterThan(SpidLevel::parse('https://www.spid.gov.it/SpidL2'))
@@ -40,5 +38,5 @@ it('reads the required level from the configuration', function (mixed $configure
 
 it('rejects an invalid required_acr', function (mixed $configured) {
     SpidLevel::required($configured);
-})->with(['SpidL4', 'level two', 5, true])
+})->with(['SpidL4', 'level two', 5, true, 2, '2'])
     ->throws(InvalidArgumentException::class, 'spid-laravel-trentino.required_acr must be SpidL1, SpidL2 or SpidL3');

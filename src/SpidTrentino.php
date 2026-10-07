@@ -179,9 +179,6 @@ class SpidTrentino
     }
 
     /**
-     * Transaction log id of the current login, or a new one when the session has none.
-     */
-    /**
      * Rejects a login below required_acr or from an identity provider outside
      * allowed_issuer_sources, before anything is stored in the session.
      *
@@ -240,6 +237,9 @@ class SpidTrentino
         return $allowed === [] ? null : $allowed;
     }
 
+    /**
+     * Transaction log id of the current login, or a new one when the session has none.
+     */
     private function transactionId(): string
     {
         $transactionId = Session::get(SessionKeys::TRANSACTION_ID);

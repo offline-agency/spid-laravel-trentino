@@ -215,3 +215,13 @@ it('rejects an invalid required_acr at boot', function () {
 
     (new SpidTrentinoServiceProvider(app()))->boot($router);
 })->throws(InvalidArgumentException::class, 'spid-laravel-trentino.required_acr must be SpidL1, SpidL2 or SpidL3');
+
+it('does not read a bare number as a SPID level', function (mixed $acr) {
+    config()->set('spid-laravel-trentino.required_acr', 'SpidL2');
+
+    levelCallback(null, ['enti-acr' => ['acr' => $acr]])
+        ->assertRedirect('/login-failed')
+        ->assertSessionHas(SessionKeys::ERROR, LEVEL_TOO_LOW);
+
+    $this->assertGuest();
+})->with(['string' => '2', 'int' => 3]);

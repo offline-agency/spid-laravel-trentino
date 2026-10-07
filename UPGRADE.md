@@ -1,5 +1,37 @@
 # Upgrade Guide
 
+## Upgrading from 2.x to 3.0
+
+### Fiscal codes are normalized (required)
+
+The fiscal code used to find and store local users is now normalized: trimmed, uppercase and without the `TINIT-` prefix (`TINIT-RSSMRA80A01H501U` becomes `RSSMRA80A01H501U`). `SpidTrentinoUser::getFiscalNumber()` returns that form; the raw claim is still available in `getEntiCodiceFiscale()` and in `spid_profile`.
+
+Users stored in the old form are no longer found at login: without the steps below, each of them would get a second account on the next login. Before deploying 3.0:
+
+1. Check what would change, on a copy of production data if possible:
+
+   ```bash
+   php artisan spid:normalize-fiscal-codes --dry-run
+   ```
+
+2. If the command reports conflicts (`Normalizing would give one fiscal code to several users`), the listed users already are duplicates of the same person (for example one created with `TINIT-` and one without). Merge them, or fix their `fiscal_code`, and run the dry run again. The command prints user ids and a keyed hash, never the fiscal codes.
+
+3. Normalize, in the same deployment step that ships 3.0 (put the application in maintenance mode so no login runs in between):
+
+   ```bash
+   php artisan down
+   php artisan spid:normalize-fiscal-codes
+   php artisan up
+   ```
+
+   The command changes nothing at all unless it can normalize every user without creating duplicates.
+
+Also check:
+
+- Code that compares `fiscal_code` or `getFiscalNumber()` with a `TINIT-` value, and other systems that receive the stored fiscal code.
+- Tests that assert `MockOpenIDConnectClient::FISCAL_CODE` as the stored value: use `MockOpenIDConnectClient::NORMALIZED_FISCAL_CODE`.
+- Log correlation: the `fiscal_code` hash written by `LogRedactor` is now computed on the normalized value, so it differs from the hash in logs written by 2.x.
+
 ## Upgrading from 1.x to 2.0
 
 2.0 fixes several bugs that made 1.x unusable in practice (the `spid.valid` middleware logged every user out, `redirect_to` was never applied, the facade did not resolve). Most applications only need the steps marked **required**.

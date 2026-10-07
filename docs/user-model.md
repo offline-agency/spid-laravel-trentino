@@ -5,7 +5,7 @@ After a successful callback, `SpidAuthController` calls `authenticateFromSpid()`
 ## What `authenticateFromSpid()` does
 
 1. Reads the model class from `auth.providers.users.model`. It must be an Eloquent model, otherwise a `LogicException` is thrown: `The user model [...] must be an Eloquent model.`
-2. Finds the user with `firstOrNew(['fiscal_code' => ...])`, using the fiscal code from the SPID payload (`SpidTrentinoUser::getFiscalNumber()`).
+2. Finds the user with `firstOrNew(['fiscal_code' => ...])`, using the normalized fiscal code from the SPID payload (`SpidTrentinoUser::getFiscalNumber()`: trimmed, uppercase, without the `TINIT-` prefix).
 3. Checks the model implements `Illuminate\Contracts\Auth\Authenticatable`, otherwise throws `The user model [...] must implement Authenticatable.`
 4. Sets `fiscal_code` explicitly (it does not rely on `$fillable` for this column).
 5. Calls `fill()` with `name`, `surname`, `preferred_username`, `locale` and `zoneinfo`.
@@ -21,7 +21,7 @@ The package migration (`php artisan vendor:publish --tag=spid-laravel-trentino-m
 
 | Column | Type | Nullable | Source |
 |--------|------|----------|--------|
-| `fiscal_code` | string, unique | yes | `enti-codicefiscale.fiscalCode` |
+| `fiscal_code` | string, unique | yes | `enti-codicefiscale.fiscalCode`, normalized (`RSSMRA80A01H501U`) |
 | `surname` | string | yes | `family_name` |
 | `preferred_username` | string | yes | `preferred_username` |
 | `locale` | string | yes | `locale` |
@@ -89,7 +89,7 @@ What happens when something is missing:
 ```php
 $user = auth()->user();
 
-$fiscalCode = $user->fiscal_code;                                   // TINIT-RSSMRA80A01H501U
+$fiscalCode = $user->fiscal_code;                                   // RSSMRA80A01H501U
 $spidLevel = $user->spid_profile['enti-acr']['acr'] ?? null;        // https://www.spid.gov.it/SpidL2
 ```
 
@@ -98,3 +98,7 @@ The keys of `spid_profile` are listed in [user DTO](user-dto.md#toarray-shape). 
 ## Customizing
 
 To change how users are matched or created (for example to assign roles or reject users), override `authenticateFromSpid()` in your own controller. See [extending](extending.md).
+
+## Normalizing existing fiscal codes
+
+Since 3.0 the `fiscal_code` column holds the normalized form. `php artisan spid:normalize-fiscal-codes` rewrites existing users (use `--dry-run` first); it changes nothing and exits with code 1 when two users would end up with the same fiscal code, listing them by id. See [UPGRADE.md](../UPGRADE.md#upgrading-from-2x-to-30).

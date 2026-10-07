@@ -5,7 +5,7 @@
 [![PHP Version](https://img.shields.io/packagist/dependency-v/offline-agency/spid-laravel-trentino/php?style=flat-square)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
 [![Laravel Version](https://img.shields.io/packagist/dependency-v/offline-agency/spid-laravel-trentino/illuminate%2Fsupport?label=laravel&style=flat-square)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
 [![Tests](https://img.shields.io/github/actions/workflow/status/offline-agency/spid-laravel-trentino/tests.yml?branch=master&label=tests&style=flat-square)](https://github.com/offline-agency/spid-laravel-trentino/actions/workflows/tests.yml)
-[![Coverage](https://img.shields.io/codecov/c/github/offline-agency/spid-laravel-trentino?style=flat-square)](https://codecov.io/gh/offline-agency/spid-laravel-trentino)
+[![Coverage](https://img.shields.io/codecov/c/github/offline-agency/spid-laravel-trentino/master?style=flat-square)](https://codecov.io/gh/offline-agency/spid-laravel-trentino)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%20max-brightgreen.svg?style=flat-square)](phpstan.neon)
 [![License](https://img.shields.io/github/license/offline-agency/spid-laravel-trentino?style=flat-square)](https://github.com/offline-agency/spid-laravel-trentino/blob/master/LICENSE.md)
 

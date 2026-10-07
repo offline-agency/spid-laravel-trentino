@@ -60,6 +60,7 @@ class SpidTrentinoServiceProvider extends ServiceProvider
             Config::string('spid-laravel-trentino.client_id'),
             is_string($secret) && $secret !== '' ? $secret : null,
             is_numeric($cacheTtl) ? (int) $cacheTtl : 3600,
+            filter_var(Config::get('spid-laravel-trentino.session_fallback'), FILTER_VALIDATE_BOOL),
         );
 
         $client->setRedirectURL(is_string($redirectUri) && $redirectUri !== ''

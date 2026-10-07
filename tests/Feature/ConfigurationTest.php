@@ -31,5 +31,6 @@ it('ships secure, non-colliding defaults', function () {
         ->and(config('spid-laravel-trentino.redirect_to'))->toBeNull()
         ->and(config('spid-laravel-trentino.logout_redirect_to'))->toBe('/')
         ->and(config('spid-laravel-trentino.error_redirect_to'))->toBe('/')
-        ->and(config('spid-laravel-trentino.cache_ttl'))->toBe(3600);
+        ->and(config('spid-laravel-trentino.cache_ttl'))->toBe(3600)
+        ->and(config('spid-laravel-trentino.session_fallback'))->toBeFalse();
 });

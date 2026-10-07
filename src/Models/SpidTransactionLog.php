@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
+use OfflineAgency\SpidLaravelTrentino\Support\TransactionLogChain;
+use OfflineAgency\SpidLaravelTrentino\Support\TransactionLogKeys;
 
 /**
  * One OIDC message of a SPID login, kept for the retention period required by
@@ -30,6 +32,10 @@ use InvalidArgumentException;
  * @property string $payload_hmac
  * @property string|null $ip_address
  * @property string|null $user_agent
+ * @property string|null $key_id HMAC key id; null for rows written before versioned keys (APP_KEY)
+ * @property string|null $previous_hash
+ * @property string|null $chain_hash
+ * @property CarbonImmutable|null $created_at
  */
 class SpidTransactionLog extends Model
 {
@@ -52,6 +58,22 @@ class SpidTransactionLog extends Model
         $table = Config::get('spid-laravel-trentino.transaction_log.table');
 
         return is_string($table) && $table !== '' ? $table : 'spid_transaction_logs';
+    }
+
+    /**
+     * Single-row table holding the head of the hash chain.
+     */
+    public static function headsTable(): string
+    {
+        return (new self)->getTable().'_heads';
+    }
+
+    /**
+     * Checkpoints written by spid:prune-logs, used as chain anchors.
+     */
+    public static function checkpointsTable(): string
+    {
+        return (new self)->getTable().'_checkpoints';
     }
 
     /**
@@ -79,6 +101,8 @@ class SpidTransactionLog extends Model
 
         $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
+        [$keyId, $secret] = TransactionLogKeys::current();
+
         $record = new self;
         $record->forceFill([
             'transaction_id' => $transactionId,
@@ -91,13 +115,13 @@ class SpidTransactionLog extends Model
             'iat' => $iat,
             'exp' => $exp,
             'payload' => $json,
-            'payload_hmac' => self::hmac($json),
+            'payload_hmac' => hash_hmac('sha256', $json, $secret),
+            'key_id' => $keyId,
             'ip_address' => $ipAddress,
             'user_agent' => $userAgent,
         ]);
-        $record->save();
 
-        return $record;
+        return TransactionLogChain::append($record);
     }
 
     /**
@@ -105,7 +129,9 @@ class SpidTransactionLog extends Model
      */
     public function verifyIntegrity(): bool
     {
-        return hash_equals(self::hmac($this->payload), $this->payload_hmac);
+        $secret = TransactionLogKeys::secret($this->key_id);
+
+        return $secret !== null && hash_equals(hash_hmac('sha256', $this->payload, $secret), $this->payload_hmac);
     }
 
     /**
@@ -143,12 +169,5 @@ class SpidTransactionLog extends Model
             'iat' => 'immutable_datetime',
             'exp' => 'immutable_datetime',
         ];
-    }
-
-    private static function hmac(string $json): string
-    {
-        $key = Config::get('app.key');
-
-        return hash_hmac('sha256', $json, is_string($key) ? $key : '');
     }
 }

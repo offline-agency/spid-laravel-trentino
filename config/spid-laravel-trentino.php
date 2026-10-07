@@ -63,6 +63,20 @@ return [
         'enabled' => env('SPID_TRENTINO_TRANSACTION_LOG_ENABLED', true),
         'table' => env('SPID_TRENTINO_TRANSACTION_LOG_TABLE', 'spid_transaction_logs'),
         'retention_months' => env('SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS', 24),
+
+        /*
+        | Versioned HMAC keys as "id:secret,id2:secret2" (a secret may be
+        | "base64:..."). New rows are signed with current_key; the id "app"
+        | always means APP_KEY. Keep every key that signed rows still retained.
+        */
+        'keys' => env('SPID_TRENTINO_TRANSACTION_LOG_KEYS'),
+        'current_key' => env('SPID_TRENTINO_TRANSACTION_LOG_CURRENT_KEY', 'app'),
+
+        /*
+        | Filesystem disk receiving the daily chain digests (spid:log-digest),
+        | ideally write-once storage. null disables the digests.
+        */
+        'digest_disk' => env('SPID_TRENTINO_TRANSACTION_LOG_DIGEST_DISK'),
     ],
 
     /*

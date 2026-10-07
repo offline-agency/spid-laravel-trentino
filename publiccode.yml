@@ -1,13 +1,12 @@
 # publiccode.yml for the Developers Italia reuse catalogue.
 # Spec: https://yml.publiccode.tools/
+# Update softwareVersion and releaseDate when a new version is released.
 publiccodeYmlVersion: "0"
 
 name: SPID Laravel Trentino
 url: "https://github.com/offline-agency/spid-laravel-trentino"
 landingURL: "https://github.com/offline-agency/spid-laravel-trentino"
-# TODO(maintainer): keep in sync with the latest release once v2.0.0 is tagged.
-softwareVersion: "2.0.0"
-# TODO(maintainer): set to the v2.0.0 release date (YYYY-MM-DD).
+softwareVersion: "2.2.0"
 releaseDate: "2026-10-07"
 platforms:
   - web
@@ -19,36 +18,55 @@ softwareType: library
 description:
   it:
     shortDescription: "Autenticazione SPID per Laravel tramite AAC Trentino (OpenID Connect con PKCE)."
-    # TODO(maintainer): write a longDescription of at least 150 characters in Italian.
     longDescription: >
-      TODO
+      Pacchetto Laravel open source che integra l'autenticazione SPID
+      tramite AAC Trentino, il gestore delle identità della Provincia
+      autonoma di Trento, con il flusso OpenID Connect authorization code
+      e PKCE. Crea o aggiorna l'utente locale tramite codice fiscale,
+      mantiene sessione e token aggiornati con due middleware e conserva
+      il registro delle transazioni OIDC cifrato per 24 mesi, come
+      richiesto dalle regole tecniche SPID/CIE OIDC. Sviluppato con il
+      finanziamento del Consorzio dei Comuni Trentini e rilasciato per
+      il riuso da parte delle pubbliche amministrazioni.
     features:
       - Login SPID tramite AAC Trentino con OpenID Connect e PKCE
       - Creazione e aggiornamento automatico degli utenti tramite codice fiscale
       - Middleware per sessione valida e rinnovo automatico del token
       - Eventi di login e logout
+      - Registro cifrato delle transazioni OIDC conservato per 24 mesi
   en:
     shortDescription: "SPID authentication for Laravel through AAC Trentino (OpenID Connect with PKCE)."
-    # TODO(maintainer): write a longDescription of at least 150 characters.
     longDescription: >
-      TODO
+      Open source Laravel package that adds SPID login through AAC
+      Trentino, the identity manager of the Autonomous Province of
+      Trento, using the OpenID Connect authorization code flow with PKCE.
+      It creates or updates the local user by fiscal code, keeps the
+      session and tokens fresh with two middleware, and keeps the
+      encrypted OIDC transaction log for 24 months as required by the
+      SPID/CIE OIDC technical rules. Developed with funding from the
+      Consorzio dei Comuni Trentini and released for reuse by public
+      administrations.
     features:
       - SPID login through AAC Trentino with OpenID Connect and PKCE
       - Users created and updated by fiscal code
       - Middleware for valid sessions and automatic token refresh
       - Login and logout events
+      - Encrypted OIDC transaction log kept for 24 months
+
+organisation:
+  # IPA code of the Consorzio dei Comuni Trentini (indicepa.gov.it).
+  uri: "urn:x-italian-pa:cdctsc"
+  name: Consorzio dei Comuni Trentini
 
 legal:
   license: MIT
-  # TODO(maintainer): confirm the copyright holder (Offline Agency, or the Consorzio dei Comuni Trentini as funder/owner).
-  mainCopyrightOwner: Offline Agency
+  mainCopyrightOwner: Consorzio dei Comuni Trentini
 
 maintenance:
   type: contract
   contractors:
     - name: Offline Agency
-      # TODO(maintainer): end date of the maintenance contract (YYYY-MM-DD).
-      until: "TODO"
+      until: "2027-07-11"
       website: "https://offlineagency.it"
   contacts:
     - name: Offline Agency
@@ -75,5 +93,3 @@ IT:
     cie: false
     anpr: false
     io: false
-  # TODO(maintainer): if the software is released by a public administration, add
-  # riuso.codiceIPA with the IPA code of the owning administration (for example the Consorzio dei Comuni Trentini).

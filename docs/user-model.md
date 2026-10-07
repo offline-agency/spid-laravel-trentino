@@ -79,8 +79,9 @@ class User extends Authenticatable
 
 What happens when something is missing:
 
-- An attribute missing from `$fillable` among `name`, `surname`, `preferred_username`, `locale` and `zoneinfo` is silently not saved (or throws, if your app enables `Model::preventSilentlyDiscardingAttributes()`).
+- An attribute missing from `$fillable` among `name`, `surname`, `preferred_username`, `locale` and `zoneinfo` is silently not saved.
 - `fiscal_code`, `email` and `spid_profile` are set with `setAttribute()`, so they are saved even when they are not in `$fillable`.
+- If your app enables `Model::preventSilentlyDiscardingAttributes()`, any of the attributes above missing from `$fillable` throws a `MassAssignmentException`, including `fiscal_code` (the lookup `firstOrNew(['fiscal_code' => ...])` mass-assigns it when creating a new user). List them all in `$fillable`.
 - Without the `array` cast on `spid_profile`, saving fails with "Array to string conversion".
 
 ## Reading the SPID data later

@@ -82,6 +82,12 @@ use Illuminate\Foundation\Configuration\Middleware;
 })
 ```
 
+Then add the button to a view:
+
+```blade
+<x-spid-laravel-trentino::login-button />
+```
+
 ## Minimal example
 
 `routes/web.php`:

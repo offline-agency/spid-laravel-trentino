@@ -1,6 +1,6 @@
 # Middleware
 
-The service provider registers two route middleware aliases. You do not need to touch `bootstrap/app.php` unless package discovery is disabled (see [installation](installation.md#registering-the-middleware-manually-laravel-12-and-13)).
+The service provider registers two route middleware aliases in its `boot()` method, so they are available whenever the provider is registered (see [installation](installation.md#registering-the-middleware-manually-laravel-12-and-13) for custom alias names).
 
 | Alias | Class |
 |-------|-------|
@@ -54,7 +54,7 @@ Otherwise it ends the session:
 
 | Request | Response |
 |---------|----------|
-| Expects JSON (`Accept: application/json`, XHR with JSON) | `419` with `{"message": "SPID session missing or expired."}` |
+| `$request->expectsJson()` is true: an `Accept` header asking for JSON, or an XHR request (`X-Requested-With: XMLHttpRequest`) that accepts any content type | `419` with `{"message": "SPID session missing or expired."}` |
 | Anything else | Redirect to `route('spid.login')`, storing the current URL as intended |
 
 A JavaScript client can treat `419` as "log in again" and redirect the window to `spid.login`.

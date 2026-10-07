@@ -98,7 +98,7 @@ app()->forgetScopedInstances(); // only if SpidTrentino was already resolved in 
 | `startSession()`, `commitSession()` | No-ops (the Laravel session is managed by `StartSession`) |
 | `getSessionKey()`, `setSessionKey()`, `unsetSessionKey()` | Laravel session with `SessionKeys::OIDC_PREFIX` |
 | `fetchURL()` | Laravel HTTP client; caches unauthenticated JSON GETs for `cache_ttl`; turns non-200 or non-JSON metadata and connection errors into `OpenIDConnectClientException` |
-| `verifyJWTSignature()` | On failure, drops a cached JWKS once and retries |
+| `verifyJWTSignature()` | When jumbojett throws (for example an unknown `kid`), drops a cached JWKS once and retries; a plain `false` is not retried ([KI-06](known-issues.md#ki-06-key-rotation-that-keeps-the-same-key-id-is-not-retried)) |
 | `verifyJWTClaims()` | Requires string `iss` and `sub`, the client id in `aud`, integer `exp` (ID tokens) before the parent checks |
 | `requestTokens()` | Rejects token responses that are not objects or lack string `access_token` and `id_token` |
 | `getResponseContentType()` | Returns the content type captured by the Laravel HTTP client |

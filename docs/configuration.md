@@ -20,6 +20,9 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 | `transaction_log.enabled` | bool | `true` | `SPID_TRENTINO_TRANSACTION_LOG_ENABLED` | Write the SPID/CIE OIDC [transaction log](transaction-log.md). Disable only in development and tests. |
 | `transaction_log.table` | string | `spid_transaction_logs` | `SPID_TRENTINO_TRANSACTION_LOG_TABLE` | Table of the transaction log (read by the migration and the model). |
 | `transaction_log.retention_months` | int | `24` | `SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS` | Retention used by `spid:prune-logs`; values below 24 are raised to 24. |
+| `transaction_log.keys` | string, array or null | `null` | `SPID_TRENTINO_TRANSACTION_LOG_KEYS` | Versioned HMAC keys, `id:secret,id2:secret2` (a secret may be `base64:...`). The id `app` always means `APP_KEY`. See [keys and rotation](transaction-log.md#keys-and-rotation). |
+| `transaction_log.current_key` | string | `app` | `SPID_TRENTINO_TRANSACTION_LOG_CURRENT_KEY` | Id of the HMAC key that signs new rows. |
+| `transaction_log.digest_disk` | string or null | `null` | `SPID_TRENTINO_TRANSACTION_LOG_DIGEST_DISK` | Disk receiving the daily [digests](transaction-log.md#daily-digests) of `spid:log-digest`; `null` disables them. |
 | `register_routes` | bool | `true` | none | `false` skips loading the package routes; register your own with the same names. |
 | `routes.login` | string | `/spid/login` | none | Path of the `spid.login` route (GET). |
 | `routes.callback` | string | `/spid/callback` | none | Path of the `spid.callback` route (GET). |

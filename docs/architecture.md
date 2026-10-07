@@ -60,8 +60,13 @@ flowchart LR
 | `Support\TokenResponse` | Normalizes token endpoint responses (object or array) | Carbon |
 | `Support\LogRedactor` | Keyed hashes for log context | Config (`app.key`) |
 | `Services\SpidTransactionLogger` | Writes the SPID/CIE OIDC transaction log; redacts tokens; never throws | `Models\SpidTransactionLog`, Config, Request, Log, Str |
-| `Models\SpidTransactionLog` | Eloquent model of the transaction log: encrypted payload, HMAC integrity, `forTransaction` and `expired` scopes | Eloquent, Config |
-| `Console\Commands\PruneSpidTransactionLogs` | `spid:prune-logs` (24-month floor, `--dry-run`, `--months`) | `Models\SpidTransactionLog`, Config |
+| `Models\SpidTransactionLog` | Eloquent model of the transaction log: encrypted payload, HMAC integrity with the row's key, appends through the hash chain, `forTransaction` and `expired` scopes | Eloquent, Config, `Support\TransactionLogKeys`, `Support\TransactionLogChain` |
+| `Support\TransactionLogKeys` | Resolves the versioned HMAC keys (`app` is `APP_KEY`) | Config |
+| `Support\TransactionLogChain` | Genesis and link hashes; appends a row under the lock of the chain head | Database, Carbon |
+| `Support\TransactionLogVerifier`, `Support\VerificationResult` | Checks HMAC, links and chain head over an id range, anchored on the preceding row or the last prune checkpoint | `Models\SpidTransactionLog` |
+| `Console\Commands\PruneSpidTransactionLogs` | `spid:prune-logs` (24-month floor, `--dry-run`, `--months`); deletes the contiguous expired prefix and records a checkpoint | `Models\SpidTransactionLog`, Config |
+| `Console\Commands\VerifySpidTransactionLogs` | `spid:verify-logs` (`--from`, `--to`) | `Support\TransactionLogVerifier` |
+| `Console\Commands\WriteSpidTransactionLogDigest` | `spid:log-digest` (`--date`): daily chain digest on `transaction_log.digest_disk` | `Models\SpidTransactionLog`, Config, Storage |
 | `Http\Controllers\SpidAuthController` | `login`, `callback`, `logout` actions | `SpidTrentino`, `SpidAuthenticatesUsers` |
 | `Traits\SpidAuthenticatesUsers` | `authenticateFromSpid()`, `spidLoginFailed()`, `redirectTo()` | Eloquent, Auth, Session, Redirect, Config, Log |
 | `Http\Middleware\RefreshSpidTokenIfNeeded` | Refresh within 60 s of expiry, forget tokens on failure | `SpidTrentino`, `SessionExpiry` |

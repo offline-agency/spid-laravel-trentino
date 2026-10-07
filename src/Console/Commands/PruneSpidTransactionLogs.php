@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OfflineAgency\SpidLaravelTrentino\Console\Commands;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
 use OfflineAgency\SpidLaravelTrentino\Models\SpidTransactionLog;
@@ -28,7 +29,8 @@ class PruneSpidTransactionLogs extends Command
             $months = self::MINIMUM_MONTHS;
         }
 
-        $query = SpidTransactionLog::query()->expired($months);
+        $lastId = $this->lastPrunableId($months);
+        $query = SpidTransactionLog::query()->where('id', '<=', $lastId);
 
         if ($this->option('dry-run') === true) {
             $this->info("Would delete {$query->count()} record(s) older than {$months} months (dry run, nothing deleted).");
@@ -36,11 +38,60 @@ class PruneSpidTransactionLogs extends Command
             return self::SUCCESS;
         }
 
-        $expired = $query->count();
-        $query->delete();
-        $this->info("Deleted {$expired} SPID transaction log record(s) older than {$months} months.");
+        $deleted = $query->count();
+
+        if ($deleted > 0) {
+            $this->deleteWithCheckpoint($lastId, $deleted);
+        }
+
+        $this->info("Deleted {$deleted} SPID transaction log record(s) older than {$months} months.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Highest id of the contiguous run of expired rows at the start of the
+     * log: rows after the first row that must be kept stay, even if they look
+     * expired (clock skew), so the remaining chain has no holes.
+     */
+    private function lastPrunableId(int $months): int
+    {
+        $firstKept = SpidTransactionLog::query()
+            ->where('created_at', '>=', CarbonImmutable::now()->subMonths($months))
+            ->min('id');
+
+        $candidates = SpidTransactionLog::query()->expired($months);
+
+        if (is_numeric($firstKept)) {
+            $candidates->where('id', '<', (int) $firstKept);
+        }
+
+        $lastId = $candidates->max('id');
+
+        return is_numeric($lastId) ? (int) $lastId : 0;
+    }
+
+    /**
+     * Deletes the prefix and records its last chain hash as the anchor that
+     * spid:verify-logs starts from.
+     */
+    private function deleteWithCheckpoint(int $lastId, int $deleted): void
+    {
+        $connection = (new SpidTransactionLog)->getConnection();
+
+        $connection->transaction(function () use ($connection, $lastId, $deleted): void {
+            $last = SpidTransactionLog::query()->findOrFail($lastId);
+
+            $connection->table(SpidTransactionLog::checkpointsTable())->insert([
+                'last_id' => $lastId,
+                'last_chain_hash' => $last->chain_hash,
+                'last_created_at' => $last->created_at,
+                'deleted' => $deleted,
+                'created_at' => CarbonImmutable::now(),
+            ]);
+
+            SpidTransactionLog::query()->where('id', '<=', $lastId)->delete();
+        });
     }
 
     private function retentionMonths(): int

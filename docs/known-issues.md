@@ -28,6 +28,46 @@ There are no Critical issues open.
 - **Impact:** if AAC uses different names, every login fails with `AAC did not return a fiscal code for the authenticated user.` (see [troubleshooting](troubleshooting.md#aac-did-not-return-a-fiscal-code)). If the prefix differs, the `fiscal_code` column stores a different format than other systems expect.
 - **Suggested fix:** capture an anonymized userinfo response from AAC (test environment), then align `SpidTrentinoUser`, `MockOpenIDConnectClient` and the test fixtures with it.
 
+### KI-15: The transaction log is not tamper-evident
+
+- **Severity:** High
+- **Location:** `src/Models/SpidTransactionLog.php:148-150` (`hmac()` keyed with `app.key`), `:142` (`encrypted` cast), `:106` (`verifyIntegrity()`)
+- **Current behavior:** each row carries an HMAC-SHA256 of its payload keyed with `APP_KEY`. The application holds that key, so anyone who can write to the database and read the application configuration can rewrite a row and recompute its HMAC; deleting rows leaves no trace, because rows are not linked to each other. The payload is encrypted with `APP_KEY` too, so losing it makes the whole retained log (at least 24 months) unreadable.
+- **Impact:** the log does not provide the integrity and non-repudiation guarantees the SPID/CIE OIDC rules ask for against an insider or a compromised application. Related to [KI-13](#ki-13-transaction-log-integrity-checks-depend-on-the-current-app_key).
+- **Suggested fix:** versioned HMAC keys separate from `APP_KEY`, a hash chain linking each row to the previous one, checkpoints when pruning, a verification command, and daily digests of the chain head written to write-once storage; document key escrow.
+
+### KI-16: Unauthenticated requests grow the transaction log without bound
+
+- **Severity:** High
+- **Location:** `src/SpidTrentino.php:33,44` (`redirectToLogin()` writes `authentication_request`), `src/SpidTrentino.php:59,75` (`handleCallback()` writes `authentication_response` before the code exchange), `routes/spid-trentino-auth.php:11` (only the `web` middleware)
+- **Current behavior:** every `GET /spid/login` writes an `authentication_request` row, and every `GET /spid/callback` (with or without a valid session) writes an `authentication_response` row, both retained for at least 24 months. Neither route is rate limited.
+- **Impact:** bots or a simple loop can grow the table, and the database, without bound; the rows cannot be pruned before the retention period.
+- **Suggested fix:** a named rate limiter on `spid.login` and `spid.callback`, keyed by client IP and configurable. Whether orphan `authentication_request` rows (no callback) may be kept for less than 24 months is a question for the DPO, not a code change.
+
+### KI-17: Transaction log write failures do not stop or alert anyone
+
+- **Severity:** High
+- **Location:** `src/Services/SpidTransactionLogger.php:141-149`
+- **Current behavior:** a write failure (missing table, read-only database, full disk) is caught, logged as `[SPID] Transaction log write failed` at error level, and the login continues.
+- **Impact:** compliance logging can stop for days without anyone noticing unless error logs are monitored; there is no way to require the log for a login to succeed.
+- **Suggested fix:** an opt-in fail-closed mode that aborts the login when the log cannot be written, and a health-check command (table present, recent rows when logins happened, sampled integrity) for monitoring.
+
+### KI-18: The SPID assurance level and identity source are not enforced
+
+- **Severity:** High
+- **Location:** no check in `src/SpidTrentino.php` (`handleCallback()`); `src/SpidTrentinoUser.php:68-69` only stores `enti-issuersource` and `enti-acr`
+- **Current behavior:** the authorization request sends no `acr_values`, and the callback accepts any level and any identity source: an `SpidL1` login is accepted where `SpidL2` is required.
+- **Impact:** services that legally require level 2 or 3 cannot rely on the package to enforce it. Related to [KI-01](#ki-01-aac-claim-names-are-not-verified-against-a-real-userinfo-response) (claim names unverified).
+- **Suggested fix:** an optional required level (requested with `acr_values` and checked against the verified ID token `acr`, with `enti-acr.acr` as fallback, higher levels satisfying lower ones) and an optional list of allowed identity sources, with configurable claim paths.
+
+### KI-19: Fiscal codes are not normalized before matching users
+
+- **Severity:** High
+- **Location:** `src/SpidTrentinoUser.php:272-275` (`getFiscalNumber()` only trims), `src/Traits/SpidAuthenticatesUsers.php:36,43`
+- **Current behavior:** the fiscal code is matched and stored as received, apart from surrounding whitespace. `TINIT-RSSMRA80A01H501U` and `RSSMRA80A01H501U` are different values on every database; `rssmra80a01h501u` is a third one on case-sensitive collations (PostgreSQL, SQLite), while MySQL and MariaDB with the default `_ci` collations match it to the uppercase form.
+- **Impact:** if AAC (or a change of identity provider) changes the prefix or the case, the same person gets a second local account. Related to [KI-01](#ki-01-aac-claim-names-are-not-verified-against-a-real-userinfo-response).
+- **Suggested fix:** normalize in one place (trim, uppercase, strip a leading `TINIT-`) for matching and storage, with a command that normalizes existing users and refuses to proceed when that would create duplicates.
+
 ### KI-02: Nonce is optional and the userinfo subject is not matched
 
 - **Severity:** Medium
@@ -74,7 +114,47 @@ There are no Critical issues open.
 - **Location:** `src/Models/SpidTransactionLog.php` (`hmac()`, `verifyIntegrity()`)
 - **Current behavior:** payloads are encrypted and their HMAC is computed with the current `APP_KEY`. After a key rotation, old rows can still be decrypted when the old key is in `APP_PREVIOUS_KEYS`, but `verifyIntegrity()` recomputes the HMAC with the new key and returns `false`.
 - **Impact:** within the 24-month retention, a rotated `APP_KEY` makes older records fail integrity checks even though they were not tampered with.
-- **Suggested fix:** store a key identifier with each row and keep a dedicated, versioned HMAC key (for example from configuration) instead of `APP_KEY`.
+- **Suggested fix:** store a key identifier with each row and keep a dedicated, versioned HMAC key (for example from configuration) instead of `APP_KEY`. The fix for [KI-15](#ki-15-the-transaction-log-is-not-tamper-evident) includes this one.
+
+### KI-20: A failed refresh forgets tokens that may still be valid
+
+- **Severity:** Medium
+- **Location:** `src/Http/Middleware/RefreshSpidTokenIfNeeded.php:33-44`, `src/OpenIdConnect/LaravelOpenIDConnectClient.php:330`
+- **Current behavior:** the middleware refreshes the access token within 60 seconds of its expiry and, on any `OpenIDConnectClientException`, forgets the access token, refresh token and expiry. The client wraps connection errors and timeouts into that exception, so a transient network problem is treated like a revoked refresh token. Other exceptions propagate.
+- **Impact:** a slow or briefly unreachable AAC logs users out although their access token is still valid for up to a minute. Related to [KI-04](#ki-04-no-configurable-http-timeout) and [KI-03](#ki-03-concurrent-refreshes-can-log-the-user-out) (same middleware, same outcome).
+- **Suggested fix:** forget the tokens only when AAC answers with an error (for example `invalid_grant`); on connection errors keep them until they actually expire and retry on the next request.
+
+### KI-21: Logout does not revoke tokens or end the session at AAC
+
+- **Severity:** Medium
+- **Location:** `src/SpidTrentino.php:141` (`logout()`), `src/Models/SpidTransactionLog.php:43-44` (`revocation_request` and `revocation_response` never written)
+- **Current behavior:** logout ends the application session only. The refresh token is not revoked at AAC, and the user is not sent to AAC's end-session endpoint.
+- **Impact:** a refresh token copied before logout stays usable until it expires, and the SPID session at the identity provider stays active on shared computers.
+- **Suggested fix:** revoke the refresh token (`revokeToken()`) and log `revocation_request` / `revocation_response`; optionally redirect to `end_session_endpoint` with `id_token_hint`.
+
+### KI-22: Client IP addresses are wrong behind a proxy without trusted proxies
+
+- **Severity:** Medium
+- **Location:** `src/Services/SpidTransactionLogger.php:138` (`Request::ip()`), `src/OpenIdConnect/LaravelOpenIDConnectClient.php:359` (session fallback fingerprint)
+- **Current behavior:** both read `Request::ip()`, which is the load balancer's address unless the application configures trusted proxies.
+- **Impact:** every transaction log row records the proxy IP instead of the user's, and the `session_fallback` binding degrades to the user agent only.
+- **Suggested fix:** document the trusted proxies requirement in installation and security docs, and warn in the health-check command proposed in [KI-17](#ki-17-transaction-log-write-failures-do-not-stop-or-alert-anyone) when all recent rows share one private IP.
+
+### KI-23: A failing local login leaves a half-populated session
+
+- **Severity:** Medium
+- **Location:** `src/SpidTrentino.php:98-102` (tokens, `SessionKeys::USER` and `SpidTrentinoLoggedIn` before the local login), `src/Http/Controllers/SpidAuthController.php:36` (`authenticateFromSpid()` called outside the `try` of `callback()`), `src/Traits/SpidAuthenticatesUsers.php:64` (`save()`), unique index at `database/migrations/add_spid_trentino_columns_to_users_table.php:14`
+- **Current behavior:** `handleCallback()` stores the tokens and the SPID user and dispatches `SpidTrentinoLoggedIn` before `authenticateFromSpid()` runs. If that throws (database error, or the unique `fiscal_code` index when two first logins of the same person race), the user gets a 500 page and the session keeps SPID tokens without a local login.
+- **Impact:** a confusing error for the user, listeners that ran for a login that did not happen, and SPID data left in the session.
+- **Suggested fix:** store the session data and dispatch the event only after the local login succeeds, retry once on a unique-constraint violation, and route other failures to `spidLoginFailed()`. The event change overlaps with [KI-27](#ki-27-no-event-carries-both-the-spid-identity-and-the-local-user).
+
+### KI-24: Login errors are English only and a cancelled login is reported as a failure
+
+- **Severity:** Medium
+- **Location:** `src/Traits/SpidAuthenticatesUsers.php:77-80` (`spidLoginFailed()`)
+- **Current behavior:** every failure flashes the hard-coded message `SPID authentication failed. Please try again.` and is logged at error level, including `access_denied` when the user simply cancelled on AAC.
+- **Impact:** Italian public administration sites show an English message, and cancelled logins pollute error logs and alerts.
+- **Suggested fix:** translatable messages (a language file or configurable strings), a distinct message and `info` level for `access_denied`.
 
 ### KI-14: The transaction log does not record federation trust chains or follow lost sessions
 
@@ -131,6 +211,46 @@ There are no Critical issues open.
 - **Current behavior:** the Packagist badges need the package to be published on Packagist, and the coverage badge needs the `CODECOV_TOKEN` repository secret.
 - **Impact:** badges show "not found" or "unknown" until then.
 - **Suggested fix:** submit the package to Packagist and add the secret.
+
+### KI-25: Pruning deletes in a single statement
+
+- **Severity:** Low
+- **Location:** `src/Console/Commands/PruneSpidTransactionLogs.php:40`
+- **Current behavior:** `spid:prune-logs` deletes every expired row with one `DELETE` statement.
+- **Impact:** on large tables the delete is one long-running transaction: replication lag, undo growth and lock contention on MySQL and PostgreSQL, and a database-wide write lock on SQLite that blocks logins writing to the log.
+- **Suggested fix:** delete in chunks by id.
+
+### KI-26: The login button does not follow the AgID SPID button guidelines
+
+- **Severity:** Low
+- **Location:** `resources/views/components/login-button.blade.php:1-5`
+- **Current behavior:** the component renders a text link labelled "Entra con SPID" with Bootstrap-style theme classes (`btn btn-light-primary`); it has none of the official SPID button graphics (logo, colors, sizes, accessible markup).
+- **Impact:** sites using the component do not match the official SPID look, which users rely on to recognize a genuine SPID login.
+- **Suggested fix:** render the official "Entra con SPID" button (logo and styles from the AgID kit) with size options, keeping the current markup available.
+
+### KI-27: No event carries both the SPID identity and the local user
+
+- **Severity:** Low
+- **Location:** `src/SpidTrentino.php:102` (the only login event, dispatched before the local login)
+- **Current behavior:** `SpidTrentinoLoggedIn` carries the SPID DTO before the local user exists; Laravel's `Login` event carries the user without the SPID data.
+- **Impact:** applications that need both (audit, role assignment) must combine two events or override the controller.
+- **Suggested fix:** a `SpidTrentinoUserAuthenticated` event dispatched after `authenticateFromSpid()` with the DTO and the user model. See also [KI-23](#ki-23-a-failing-local-login-leaves-a-half-populated-session).
+
+### KI-28: `redirectTo()` contains application logic
+
+- **Severity:** Low
+- **Location:** `src/Traits/SpidAuthenticatesUsers.php:83,93-94`
+- **Current behavior:** without `redirect_to`, users with `hasRole('admin')` are sent to `/admin/dashboard`, a path the package cannot know exists.
+- **Impact:** applications with admin users but no such route get a 404 after login.
+- **Suggested fix:** a configurable map (or no special case), with the current behavior kept as an opt-in.
+
+### KI-29: Transaction log rows are not linked to the local user
+
+- **Severity:** Low
+- **Location:** `database/migrations/create_spid_transaction_logs_table.php:25` (`sub` is the only identity column)
+- **Current behavior:** rows can be connected to a person only through the OIDC `sub`, which the `users` table stores inside the `spid_profile` JSON, not as a column. The documentation does not explain how retention (at least 24 months) interacts with erasure requests.
+- **Impact:** answering a GDPR access or erasure request requires ad hoc queries, and teams may delete rows they are required to keep.
+- **Suggested fix:** store a reference to the local user (or index `sub` on `users`), and document, with the DPO, the legal basis for keeping the log after an erasure request.
 
 ## Resolved in 2.0
 

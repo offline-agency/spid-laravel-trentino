@@ -6,6 +6,7 @@ namespace OfflineAgency\SpidLaravelTrentino\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Config;
 use OfflineAgency\SpidLaravelTrentino\Support\FiscalCode;
 use OfflineAgency\SpidLaravelTrentino\Support\LogRedactor;
@@ -15,6 +16,8 @@ use OfflineAgency\SpidLaravelTrentino\Support\LogRedactor;
  * matching since 3.0. All or nothing: when two users would end up with the
  * same fiscal code, nothing changes and the users are listed (by user id and
  * a keyed hash of the code, never the code itself) for manual resolution.
+ * Global scopes are ignored: soft-deleted or otherwise hidden users still
+ * hold their fiscal code in the unique index.
  */
 class NormalizeFiscalCodes extends Command
 {
@@ -42,7 +45,12 @@ class NormalizeFiscalCodes extends Command
         $owners = [];
         $model = new $userModel;
 
-        foreach ($userModel::query()->whereNotNull('fiscal_code')->lazyById(self::CHUNK, $model->getKeyName()) as $user) {
+        $users = $userModel::query()->withoutGlobalScopes()
+            ->select([$model->getKeyName(), 'fiscal_code'])
+            ->whereNotNull('fiscal_code')
+            ->lazyById(self::CHUNK, $model->getKeyName());
+
+        foreach ($users as $user) {
             $current = $user->getAttribute('fiscal_code');
             $normalized = FiscalCode::normalize(is_string($current) ? $current : '');
 
@@ -83,11 +91,18 @@ class NormalizeFiscalCodes extends Command
             return self::SUCCESS;
         }
 
-        $model->getConnection()->transaction(function () use ($userModel, $changes): void {
-            foreach ($changes as $key => $normalized) {
-                $userModel::query()->whereKey($key)->update(['fiscal_code' => $normalized]);
-            }
-        });
+        try {
+            $model->getConnection()->transaction(function () use ($userModel, $changes): void {
+                foreach ($changes as $key => $normalized) {
+                    $userModel::query()->withoutGlobalScopes()->whereKey($key)->update(['fiscal_code' => $normalized]);
+                }
+            });
+        } catch (QueryException) {
+            // Not rethrown or chained: the SQL bindings contain fiscal codes.
+            $this->error('Normalization failed and was rolled back; nothing was changed. Run it again with --dry-run.');
+
+            return self::FAILURE;
+        }
 
         $this->info('Normalized '.count($changes).' fiscal code(s).');
 

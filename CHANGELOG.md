@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `Support\FiscalCode::normalize()` and `MockOpenIDConnectClient::NORMALIZED_FISCAL_CODE`.
 
 ### Changed
-- **Breaking:** fiscal codes are normalized (trimmed, uppercase, without the `TINIT-` prefix) before local users are matched and stored; `SpidTrentinoUser::getFiscalNumber()` returns the normalized value and `LogRedactor` hashes it. Run `spid:normalize-fiscal-codes` before deploying; see [UPGRADE.md](UPGRADE.md) (KI-19).
+- **Breaking:** fiscal codes are normalized (trimmed, uppercase, without the `TINIT-` prefix) before local users are matched and stored; `SpidTrentinoUser::getFiscalNumber()` returns the normalized value and `LogRedactor` hashes it. Run `spid:normalize-fiscal-codes` while the application is in maintenance mode, right after deploying and before the first login; see [UPGRADE.md](UPGRADE.md) (KI-19).
 
 ## [2.1.0] - 2026-10-07
 

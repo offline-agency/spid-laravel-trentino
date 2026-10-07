@@ -144,7 +144,7 @@ For maintainers:
 - [Development](docs/development.md): tests, quality gates, CI, releases
 - [Known issues](docs/known-issues.md): open issues in 2.0 and 1.x problems fixed in 2.0
 
-Also: [UPGRADE.md](UPGRADE.md) (1.x to 2.0), [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md).
+Also: [UPGRADE.md](UPGRADE.md) (2.x to 3.0, 1.x to 2.0), [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
 

@@ -6,9 +6,9 @@
 
 The fiscal code used to find and store local users is now normalized: trimmed, uppercase and without the `TINIT-` prefix (`TINIT-RSSMRA80A01H501U` becomes `RSSMRA80A01H501U`). `SpidTrentinoUser::getFiscalNumber()` returns that form; the raw claim is still available in `getEntiCodiceFiscale()` and in `spid_profile`.
 
-Users stored in the old form are no longer found at login: without the steps below, each of them would get a second account on the next login. Before deploying 3.0:
+Users stored in the old form are no longer found at login: without the steps below, each of them would get a second account on the next login. Normalizing is a one-way step: 2.x looks users up in the old form, so rolling back to 2.x afterwards needs a database restore.
 
-1. Check what would change, on a copy of production data if possible:
+1. Before the upgrade, install 3.0 on a copy of production data (or a staging environment) and check what would change:
 
    ```bash
    php artisan spid:normalize-fiscal-codes --dry-run
@@ -16,15 +16,16 @@ Users stored in the old form are no longer found at login: without the steps bel
 
 2. If the command reports conflicts (`Normalizing would give one fiscal code to several users`), the listed users already are duplicates of the same person (for example one created with `TINIT-` and one without). Merge them, or fix their `fiscal_code`, and run the dry run again. The command prints user ids and a keyed hash, never the fiscal codes.
 
-3. Normalize, in the same deployment step that ships 3.0 (put the application in maintenance mode so no login runs in between):
+3. Deploy in this order, so that no login runs between the new code and the normalization:
 
    ```bash
-   php artisan down
+   php artisan down                          # still on 2.x
+   # deploy 3.0 (composer install, migrations, ...)
    php artisan spid:normalize-fiscal-codes
    php artisan up
    ```
 
-   The command changes nothing at all unless it can normalize every user without creating duplicates.
+   The command changes nothing at all unless it can normalize every user without creating duplicates; users hidden by global scopes (for example soft-deleted ones) are included. With several servers or a rolling deployment, make maintenance mode global (`APP_MAINTENANCE_DRIVER=cache` with a shared cache store) and keep every 2.x server out of rotation until the command has run, otherwise logins served by 2.x recreate the old form.
 
 Also check:
 

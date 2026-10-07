@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use OfflineAgency\SpidLaravelTrentino\Console\Commands\NormalizeFiscalCodes;
 use OfflineAgency\SpidLaravelTrentino\Support\LogRedactor;
+use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\ScopedUser;
 use OfflineAgency\SpidLaravelTrentino\Tests\Fixtures\User;
 
 mutates(NormalizeFiscalCodes::class);
@@ -88,6 +89,36 @@ it('is a no-op on already normalized data', function () {
         ->assertSuccessful();
 
     expect($updates)->toBe(0);
+});
+
+it('sees rows hidden by global scopes, such as soft-deleted users', function () {
+    config()->set('auth.providers.users.model', ScopedUser::class);
+    $hidden = User::query()->forceCreate(['name' => 'Hidden', 'fiscal_code' => 'RSSMRA80A01H501U']);
+    $visible = userWithFiscalCode('TINIT-RSSMRA80A01H501U');
+    $hiddenOld = User::query()->forceCreate(['name' => 'Hidden', 'fiscal_code' => 'tinit-vrdgpp70b02l219x']);
+    $before = fiscalCodes();
+
+    $this->artisan('spid:normalize-fiscal-codes')
+        ->expectsOutputToContain(LogRedactor::hash('RSSMRA80A01H501U').": users {$hidden->id}, {$visible->id}")
+        ->doesntExpectOutputToContain('RSSMRA80A01H501U')
+        ->assertExitCode(1);
+    expect(fiscalCodes())->toBe($before);
+
+    User::query()->whereKey($hidden->id)->delete();
+    $this->artisan('spid:normalize-fiscal-codes')->expectsOutputToContain('Normalized 2 fiscal code(s).')->assertSuccessful();
+    expect(fiscalCodes()[$hiddenOld->id])->toBe('VRDGPP70B02L219X');
+});
+
+it('rolls back without printing fiscal codes when the update fails', function () {
+    $user = userWithFiscalCode('TINIT-RSSMRA80A01H501U');
+    DB::statement("CREATE TRIGGER fail_fiscal_code BEFORE UPDATE ON users BEGIN SELECT RAISE(ABORT, 'UNIQUE constraint failed: users.fiscal_code'); END");
+
+    $this->artisan('spid:normalize-fiscal-codes')
+        ->expectsOutputToContain('Normalization failed and was rolled back; nothing was changed. Run it again with --dry-run.')
+        ->doesntExpectOutputToContain('RSSMRA80A01H501U')
+        ->assertExitCode(1);
+
+    expect(fiscalCodes())->toBe([$user->id => 'TINIT-RSSMRA80A01H501U']);
 });
 
 it('rejects a non-Eloquent user model', function (string $model) {

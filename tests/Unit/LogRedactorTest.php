@@ -30,6 +30,6 @@ it('redacts a SPID user for log context', function () {
 
     expect(LogRedactor::user($user))->toBe([
         'sub' => LogRedactor::hash('subject-123'),
-        'fiscal_code' => LogRedactor::hash('TINIT-RSSMRA80A01H501U'),
+        'fiscal_code' => LogRedactor::hash('RSSMRA80A01H501U'),
     ]);
 });

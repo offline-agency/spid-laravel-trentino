@@ -61,3 +61,4 @@ The middleware catches the exception, logs `[SPID] Access token refresh failed` 
 - With several application servers, use a shared session store (database, Redis), not `file` on local disks.
 - The session cookie must be sent on the callback. AAC redirects back with a top-level GET, which `SameSite=Lax` (Laravel's default) allows.
 - Only one login can be pending per session at a time, see [KI-05](known-issues.md#ki-05-one-login-round-trip-per-session).
+- If the cookie is lost between login and callback in your users' network, `session_fallback` can recover the pending login from the cache (opt-in, single use, bound to the client IP address and user agent), see [security](security.md#session-fallback-for-lost-cookies).

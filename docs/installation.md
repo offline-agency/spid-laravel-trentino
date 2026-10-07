@@ -68,6 +68,7 @@ SPID_TRENTINO_REDIRECT_TO=
 | `SPID_TRENTINO_PROVIDER_URL` | No | `https://aac-test.cloud-test.tndigit.it` | AAC base URL. The default is the **test** environment. |
 | `SPID_TRENTINO_SCOPES` | No | `openid profile.codicefiscale.me email offline_access` | Space separated scopes. |
 | `SPID_TRENTINO_REDIRECT_TO` | No | none | Path used after login when there is no intended URL. |
+| `SPID_TRENTINO_SESSION_FALLBACK` | No | `false` | Recover logins whose callback arrives without the session cookie, see [security](security.md#session-fallback-for-lost-cookies). |
 
 After changing `.env` in an environment with cached configuration, run `php artisan config:clear` (or `config:cache` again).
 

@@ -16,6 +16,7 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 | `provider_url` | string | `https://aac-test.cloud-test.tndigit.it` | `SPID_TRENTINO_PROVIDER_URL` | AAC base URL. Discovery is read from `{provider_url}/.well-known/openid-configuration`; it is also the expected ID token issuer. |
 | `scopes` | string | `openid profile.codicefiscale.me email offline_access` | `SPID_TRENTINO_SCOPES` | Space separated scopes. `openid` is removed from the list and always added by the client, so it is never sent twice. |
 | `cache_ttl` | int | `3600` | none | Seconds the discovery document and the JWKS are cached in the default cache store. `0` disables caching. A non-numeric value falls back to `3600`. |
+| `session_fallback` | bool | `false` | `SPID_TRENTINO_SESSION_FALLBACK` | Recover a login whose callback arrives without the session cookie. Opt-in; see [security](security.md#session-fallback-for-lost-cookies) before enabling it. Accepts `true`, `1`, `on`, `yes`. |
 | `register_routes` | bool | `true` | none | `false` skips loading the package routes; register your own with the same names. |
 | `routes.login` | string | `/spid/login` | none | Path of the `spid.login` route (GET). |
 | `routes.callback` | string | `/spid/callback` | none | Path of the `spid.callback` route (GET). |
@@ -44,6 +45,7 @@ The OIDC client is built by `SpidTrentinoServiceProvider` each time it is resolv
 - `provider_url` and `client_id` are read with `Config::string()`, so a missing (`null`) value throws instead of silently connecting to the wrong place.
 - `client_secret` is passed only when it is a non-empty string.
 - `cache_ttl` is cast to `int` when numeric, otherwise `3600` is used.
+- `session_fallback` is read with `FILTER_VALIDATE_BOOL`, so environment strings such as `true` or `1` enable it and anything else disables it.
 - `redirect_uri` falls back to the absolute URL of `routes.callback`.
 - PKCE is always requested with `S256`; it is used when AAC advertises `S256` in `code_challenge_methods_supported`.
 

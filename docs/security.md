@@ -9,6 +9,18 @@ This page describes what the package protects against, what it leaves to your ap
 - **Nonce:** a random `nonce` is sent and compared with the ID token claim when the claim is present, see [KI-02](known-issues.md#ki-02-nonce-is-optional-and-the-userinfo-subject-is-not-matched).
 - **Callback parameters:** only `code`, `state`, `error` and `error_description` are read, and only when they are strings; other request input never reaches the OIDC library.
 
+## Session fallback for lost cookies
+
+Some networks (for example corporate proxies) strip the session cookie, so the callback arrives with an empty session and the login fails. Setting `session_fallback` to `true` keeps a copy of the pending login in the cache:
+
+- what is cached: the state, nonce and PKCE verifier of the login, under a key derived from the SHA-256 of the `state`, in the default cache store;
+- how long: ten minutes from the login redirect;
+- who can use it: only a callback from the **same client IP address and user agent** that started the login (a SHA-256 of both is stored with the entry and compared);
+- how often: once; the entry is deleted when its callback has been processed, successfully or not;
+- when: only when the session does not hold the value; an intact session is always used first. Each recovered value logs `[SPID] Session fallback used`.
+
+Trade-off: with the fallback, the browser session no longer has to match the login. Anyone who obtains the callback URL (`code` and `state`) within ten minutes, **from the same IP address and user agent**, can complete that login. Behind a shared egress IP (the same corporate proxy that motivates the option), the user agent is the only distinguishing factor. Enable it only when lost cookies are a real problem for your users, keep HTTPS everywhere, and prefer fixing the proxy or the cookie settings (see [troubleshooting](troubleshooting.md#login-fails-after-returning-from-aac-session-lost-second-tab-reloaded-callback)).
+
 ## ID token validation
 
 Validation happens inside jumbojett's `authenticate()`, before any session or user is touched:

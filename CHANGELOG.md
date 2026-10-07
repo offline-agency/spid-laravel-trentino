@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- Transaction log for the SPID/CIE OIDC retention policy (based on #3): every OIDC message of a login (authentication, token, userinfo, refresh, logout) is stored encrypted with an HMAC-SHA256, grouped by transaction id; `spid:prune-logs` command with a 24-month floor; `transaction_log` configuration; `SessionKeys::TRANSACTION_ID`. Access and refresh tokens are stored only as SHA-256 hashes and the client secret never.
+
+## [2.1.0] - 2026-10-07
+
+### Added
 - `session_fallback` option (off by default): recovers a login whose callback arrives without the session cookie, using a single-use cache entry keyed by state and bound to the client IP address and user agent. Based on the cache fallback proposed in #2.
 
 ## [2.0.0] - 2026-10-07

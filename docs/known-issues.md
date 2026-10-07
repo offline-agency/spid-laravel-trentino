@@ -68,6 +68,22 @@ There are no Critical issues open.
 - **Impact:** with a public client (empty `SPID_TRENTINO_CLIENT_SECRET`), AAC may reject every refresh; users are then sent back to the SPID login when the access token expires. Not tested against AAC.
 - **Suggested fix:** for public clients, override `refreshToken()` to send `client_id` in the body without an `Authorization` header; until then, prefer a confidential client.
 
+### KI-13: Transaction log integrity checks depend on the current APP_KEY
+
+- **Severity:** Medium
+- **Location:** `src/Models/SpidTransactionLog.php` (`hmac()`, `verifyIntegrity()`)
+- **Current behavior:** payloads are encrypted and their HMAC is computed with the current `APP_KEY`. After a key rotation, old rows can still be decrypted when the old key is in `APP_PREVIOUS_KEYS`, but `verifyIntegrity()` recomputes the HMAC with the new key and returns `false`.
+- **Impact:** within the 24-month retention, a rotated `APP_KEY` makes older records fail integrity checks even though they were not tampered with.
+- **Suggested fix:** store a key identifier with each row and keep a dedicated, versioned HMAC key (for example from configuration) instead of `APP_KEY`.
+
+### KI-14: The transaction log does not record federation trust chains or follow lost sessions
+
+- **Severity:** Low
+- **Location:** `src/SpidTrentino.php` (transaction log calls)
+- **Current behavior:** the spec also lists the Trust Chain of the entity (Entity Configuration and Entity Statements); AAC is used through plain OIDC discovery, so no trust chain is fetched or logged. When the callback arrives without the session (see `session_fallback`), the transaction id is lost and the callback events start a new transaction id.
+- **Impact:** a login may appear as two transactions in the log; records are still complete per message.
+- **Suggested fix:** log the discovery document and JWKS as the provider's configuration; carry the transaction id in the session fallback entry.
+
 ### KI-06: Key rotation that keeps the same key id is not retried
 
 - **Severity:** Low

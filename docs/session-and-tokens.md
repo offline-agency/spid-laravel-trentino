@@ -11,6 +11,7 @@ Everything the package stores lives in the Laravel session. Use the constants of
 | `SessionKeys::REFRESH_TOKEN` | `spid_trentino_refresh_token` | AAC refresh token, when issued (`offline_access` scope) | callback, refresh | logout, `spid.valid`, failed refresh, a callback without refresh token |
 | `SessionKeys::ACCESS_TOKEN_EXPIRES_AT` | `spid_trentino_access_token_expires_at` | ISO-8601 expiry of the access token | callback, refresh (when AAC sends `expires_in`) | logout, `spid.valid`, failed refresh, a response without `expires_in` |
 | `SessionKeys::ERROR` | `spid_trentino_error` | Flash message `SPID authentication failed. Please try again.` | `spidLoginFailed()` | next request (flash) |
+| `SessionKeys::TRANSACTION_ID` | `spid_trentino_transaction_id` | UUID grouping the [transaction log](transaction-log.md) records of the current login | login redirect | logout, `spid.valid` (session invalidated) |
 | `SessionKeys::OIDC_PREFIX` + `openid_connect_state` | `spid_trentino_oidc_openid_connect_state` | OIDC `state` of the pending login | login redirect | callback (verified and removed) |
 | `SessionKeys::OIDC_PREFIX` + `openid_connect_nonce` | `spid_trentino_oidc_openid_connect_nonce` | OIDC `nonce` of the pending login | login redirect | callback |
 | `SessionKeys::OIDC_PREFIX` + `openid_connect_code_verifier` | `spid_trentino_oidc_openid_connect_code_verifier` | PKCE code verifier of the pending login | login redirect | callback |

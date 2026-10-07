@@ -49,6 +49,10 @@ The package does not validate the ID token a second time with another library. G
 - **Open redirects:** post-login and post-logout targets come from configuration (`redirect_to`, `logout_redirect_to`, `error_redirect_to`) or from the intended URL stored server side by Laravel; no target is read from request parameters.
 - The logout ends the application session only; the SPID session at the identity provider stays active.
 
+## Transaction log
+
+The SPID/CIE OIDC transaction log stores the OIDC messages of every login for at least 24 months, encrypted with `APP_KEY` and signed with an HMAC; access and refresh tokens only as SHA-256 hashes, the client secret never. Its searchable columns (`sub`, authorization code, IP address, user agent) are stored in clear for indexing: restrict access to the table. See [transaction log](transaction-log.md).
+
 ## Logging and personal data
 
 - Tokens (access, refresh, ID), the client secret and personal data (fiscal code, names, email) are never logged by the package.

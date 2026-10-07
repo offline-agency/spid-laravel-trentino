@@ -63,6 +63,14 @@ return [
         'enabled' => env('SPID_TRENTINO_TRANSACTION_LOG_ENABLED', true),
         'table' => env('SPID_TRENTINO_TRANSACTION_LOG_TABLE', 'spid_transaction_logs'),
         'retention_months' => env('SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS', 24),
+
+        /*
+        | When true, a login (or token refresh) whose transaction log row cannot
+        | be written is aborted with "SPID login is temporarily unavailable".
+        | When false (default), the failure is logged and the login continues.
+        | Logout is never blocked. Monitor the log with spid:check-logs.
+        */
+        'fail_closed' => env('SPID_TRENTINO_TRANSACTION_LOG_FAIL_CLOSED', false),
     ],
 
     /*

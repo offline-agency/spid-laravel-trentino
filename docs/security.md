@@ -76,3 +76,4 @@ The SPID/CIE OIDC transaction log stores the OIDC messages of every login for at
 - With several servers, use a shared session store and a shared cache store.
 - Keep the server clock in sync (NTP); ID token checks allow 300 seconds of skew.
 - Protect routes with `['web', 'auth', 'spid.refresh', 'spid.valid']`.
+- Schedule `spid:check-logs` with an alert, and decide whether a login without a transaction log record is acceptable (`transaction_log.fail_closed`).

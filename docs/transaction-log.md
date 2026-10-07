@@ -17,6 +17,7 @@ The SPID/CIE OIDC technical rules ([log management](https://docs.italia.it/itali
    use Illuminate\Support\Facades\Schedule;
 
    Schedule::command('spid:prune-logs')->daily();
+   Schedule::command('spid:check-logs')->hourly();   // see Monitoring
    ```
 
 3. Keep `APP_KEY` safe and stable: it encrypts the payloads and keys their HMAC (see [key rotation](#key-rotation)).
@@ -30,6 +31,7 @@ The log is enabled by default. If the table does not exist yet, logins keep work
 | `transaction_log.enabled` | `SPID_TRENTINO_TRANSACTION_LOG_ENABLED` | `true` | `false` (or `0`) disables writing, for local development and tests only |
 | `transaction_log.table` | `SPID_TRENTINO_TRANSACTION_LOG_TABLE` | `spid_transaction_logs` | Table used by the migration and the model |
 | `transaction_log.retention_months` | `SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS` | `24` | Retention used by `spid:prune-logs`; values below 24 are raised to 24 |
+| `transaction_log.fail_closed` | `SPID_TRENTINO_TRANSACTION_LOG_FAIL_CLOSED` | `false` | `true` aborts logins and token refreshes whose row cannot be written (see [failure handling](#failure-handling)) |
 
 ## What is recorded
 
@@ -55,7 +57,7 @@ Searchable columns (indexed, stored in clear): `transaction_id`, `event_type`, `
 - **Integrity:** `payload_hmac` is an HMAC-SHA256 of the plaintext JSON keyed with `APP_KEY`. `$record->verifyIntegrity()` returns `false` when the payload or the HMAC was changed.
 - **Non-repudiation:** the `id_token` stored in `token_response` is signed by AAC and can be verified against AAC's keys.
 - **No usable credentials:** the client secret is never stored, and access and refresh tokens are stored only as SHA-256 hashes.
-- **Failures never block logins:** a write error is logged with the exception class only (database errors contain the bound values) and the login continues.
+- **Failures are logged without data:** a write error is logged with the exception class only (database errors contain the bound values). Whether the login then continues depends on [`fail_closed`](#failure-handling).
 
 Restrict database access to the table to the people authorized to consult it.
 
@@ -76,6 +78,49 @@ foreach ($records as $record) {
 }
 
 SpidTransactionLog::query()->where('sub', $subject)->latest()->get();
+```
+
+## Failure handling
+
+A row can fail to be written because the table is missing, the database is read-only or full, or the connection drops. Every failure is logged as `[SPID] Transaction log write failed` with the event type, the transaction id and the exception class. What happens next depends on `transaction_log.fail_closed`:
+
+| | `false` (default, fail-open) | `true` (fail-closed) |
+|---|---|---|
+| Login route | Redirects to AAC | Redirects to `error_redirect_to` with `SPID login is temporarily unavailable. Please try again later.` |
+| Callback | Logs the user in | Aborts before anything is written to the session; the user gets the same message. A failure before the code exchange stops it from being sent to AAC |
+| Token refresh (`spid.refresh`) | Refreshes | Fails like a refused refresh: `spid.refresh` removes the tokens from the session, and `spid.valid` sends the user back to the SPID login when the access token expires |
+| Logout | Logs the user out | Logs the user out (a log failure never keeps a user logged in) |
+
+Fail-closed is for deployments where a login without a log record is not acceptable. It turns a database problem into a SPID outage, so pair it with [monitoring](#monitoring). Each abort is logged as `[SPID] Login aborted: the transaction log is unavailable`, without the database error.
+
+## Monitoring
+
+`spid:check-logs` checks that the log is usable and exits with code 1 when it is not:
+
+```bash
+php artisan spid:check-logs                          # defaults: --max-age=24h --sample=20
+php artisan spid:check-logs --max-age=2h --sample=100
+```
+
+It fails when:
+
+- `transaction_log.enabled` is `false`, or the table does not exist;
+- a write failed within `--max-age` (minutes, hours or days: `30m`, `24h`, `7d`) and no row was written since: this also catches fail-closed outages, where no login succeeds;
+- a SPID login succeeded within `--max-age` but the newest row is more than five minutes older than that login: rows are not being written;
+- one of the `--sample` newest rows fails `verifyIntegrity()` or cannot be decrypted.
+
+When no login succeeded and no write failed within `--max-age`, it prints a warning and succeeds, because it cannot tell whether writes work. The times of the last successful login and of the last failed write are kept in the default cache store (keys `spid-laravel-trentino:last-login` and `spid-laravel-trentino:last-write-failure`). With several servers, use a shared cache store; for the check to work when the log database is down, the cache store must not live in that database (for example Redis rather than the `database` cache store).
+
+Schedule it with an alert:
+
+```php
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::command('spid:check-logs')
+    ->hourly()
+    ->onFailure(function () {
+        // notify the people on call, for example with a Notification
+    });
 ```
 
 ## Pruning

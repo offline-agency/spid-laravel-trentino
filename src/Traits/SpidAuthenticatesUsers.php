@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
 use Jumbojett\OpenIDConnectClientException;
 use LogicException;
+use OfflineAgency\SpidLaravelTrentino\Exceptions\TransactionLogUnavailable;
 use OfflineAgency\SpidLaravelTrentino\SessionKeys;
 use OfflineAgency\SpidLaravelTrentino\SpidTrentinoUser;
 
@@ -74,6 +75,13 @@ trait SpidAuthenticatesUsers
      */
     protected function spidLoginFailed(OpenIDConnectClientException $exception): RedirectResponse
     {
+        if ($exception instanceof TransactionLogUnavailable) {
+            Log::error('[SPID] Login aborted: the transaction log is unavailable', ['event_type' => $exception->eventType]);
+
+            return Redirect::to(Config::string('spid-laravel-trentino.error_redirect_to'))
+                ->with(SessionKeys::ERROR, 'SPID login is temporarily unavailable. Please try again later.');
+        }
+
         Log::error('[SPID] Authentication failed', ['exception' => $exception]);
 
         return Redirect::to(Config::string('spid-laravel-trentino.error_redirect_to'))

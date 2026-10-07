@@ -8,6 +8,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use OfflineAgency\SpidLaravelTrentino\Console\Commands\CheckSpidTransactionLogs;
 use OfflineAgency\SpidLaravelTrentino\Console\Commands\PruneSpidTransactionLogs;
 use OfflineAgency\SpidLaravelTrentino\Http\Middleware\EnsureValidSpidToken;
 use OfflineAgency\SpidLaravelTrentino\Http\Middleware\RefreshSpidTokenIfNeeded;
@@ -47,7 +48,7 @@ class SpidTrentinoServiceProvider extends ServiceProvider
                 __DIR__.'/../database/migrations' => $this->app->databasePath('migrations'),
             ], 'spid-laravel-trentino-migrations');
 
-            $this->commands([PruneSpidTransactionLogs::class]);
+            $this->commands([PruneSpidTransactionLogs::class, CheckSpidTransactionLogs::class]);
         }
     }
 

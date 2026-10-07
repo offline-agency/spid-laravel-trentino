@@ -1,8 +1,9 @@
 # Known issues
 
-This log tracks behavior that is incorrect, incomplete or surprising, with enough detail to fix it later. It has two parts:
+This log tracks behavior that is incorrect, incomplete or surprising, with enough detail to fix it later. It has three parts:
 
 - [Open in 2.0](#open-in-20): issues present in the current code, ordered by severity.
+- [Resolved since 2.1](#resolved-since-21): issues of this log fixed after 2.1.0, with the change that fixed them.
 - [Resolved in 2.0](#resolved-in-20): discrepancies found in 1.x (`master` before 2.0) and how 2.0 fixed them, kept for teams upgrading from 1.x.
 
 Severity scale:
@@ -131,6 +132,12 @@ There are no Critical issues open.
 - **Current behavior:** the Packagist badges need the package to be published on Packagist, and the coverage badge needs the `CODECOV_TOKEN` repository secret.
 - **Impact:** badges show "not found" or "unknown" until then.
 - **Suggested fix:** submit the package to Packagist and add the secret.
+
+## Resolved since 2.1
+
+| # | Issue | Fixed by |
+|---|-------|----------|
+| KI-17 | Transaction log write failures did not stop or alert anyone | `transaction_log.fail_closed` (opt-in) aborts logins and refreshes whose row cannot be written; `spid:check-logs` detects a missing table, logins without rows and rows that fail their integrity check. See [failure handling](transaction-log.md#failure-handling) and [monitoring](transaction-log.md#monitoring) |
 
 ## Resolved in 2.0
 

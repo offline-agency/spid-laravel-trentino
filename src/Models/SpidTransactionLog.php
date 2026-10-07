@@ -17,6 +17,7 @@ use InvalidArgumentException;
  * rest with the application key, and an HMAC-SHA256 of the plaintext (keyed
  * with the application key) guards its integrity.
  *
+ * @property int $id
  * @property string $transaction_id
  * @property string $event_type
  * @property string|null $authorization_code

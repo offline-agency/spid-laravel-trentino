@@ -55,6 +55,10 @@ See [UPGRADE.md](UPGRADE.md) for the breaking changes.
 - A userinfo response without a fiscal code can no longer log the browser into an unrelated account.
 - An email returned by SPID never takes over another local account.
 
+### Documentation
+- Developer documentation under `docs/`: installation, configuration, user model, authentication flow, session and tokens, middleware, events, user DTO, extending, troubleshooting, security, architecture, development and known issues.
+- README rewritten as an entry point with a quick start, a minimal working example and links to every document.
+
 ## [1.0.0-dev] - 2025-06-17 (never tagged)
 
 ### Added

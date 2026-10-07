@@ -55,6 +55,19 @@ it('defaults the redirect URI to the callback route and treats an empty secret a
         ->and($client->getClientSecret())->toBeNull();
 });
 
+it('passes session_fallback to the OIDC client', function (mixed $configured, bool $expected) {
+    config()->set('spid-laravel-trentino.session_fallback', $configured);
+
+    expect((fn () => $this->sessionFallback)->call(app(LaravelOpenIDConnectClient::class)))->toBe($expected);
+})->with([
+    'default' => [false, false],
+    'true' => [true, true],
+    'env string "true"' => ['true', true],
+    'env string "1"' => ['1', true],
+    'env string "0"' => ['0', false],
+    'garbage' => ['maybe', false],
+]);
+
 it('falls back to the default cache TTL when cache_ttl is not numeric', function () {
     config()->set('spid-laravel-trentino.cache_ttl', 'forever');
 

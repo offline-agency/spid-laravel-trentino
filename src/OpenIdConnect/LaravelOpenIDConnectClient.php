@@ -9,6 +9,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
 use Jumbojett\OpenIDConnectClient;
@@ -36,13 +37,28 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
 
     private const string CACHE_PREFIX = 'spid-laravel-trentino:oidc:';
 
+    /** Seconds a pending login can be recovered without the session cookie. */
+    private const int SESSION_FALLBACK_TTL = 600;
+
     private ?string $lastContentType = null;
 
+    /** @var array<string, mixed> State, nonce and verifier written by the current authorization request. */
+    private array $pendingSessionData = [];
+
+    /** State of the callback being processed; set only inside authenticateWith(). */
+    private ?string $callbackState = null;
+
+    /**
+     * @param  bool  $sessionFallback  keep a copy of the pending login in the cache, keyed by state
+     *                                 and bound to the client IP and user agent, for callbacks that
+     *                                 arrive without the session cookie (see docs/security.md)
+     */
     public function __construct(
         string $providerUrl,
         string $clientId,
         ?string $clientSecret = null,
         private readonly int $cacheTtl = 3600,
+        private readonly bool $sessionFallback = false,
     ) {
         parent::__construct($providerUrl, $clientId, $clientSecret);
     }
@@ -75,11 +91,13 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
             array_intersect_key($parameters, array_flip(self::CALLBACK_PARAMETERS)),
             is_string(...),
         );
+        $this->callbackState = $_REQUEST['state'] ?? null;
 
         try {
             $authenticated = parent::authenticate();
         } finally {
             $_REQUEST = $globalRequest;
+            $this->forgetSessionFallback();
         }
 
         $this->unsetCodeVerifier();
@@ -197,24 +215,57 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
         // The Laravel session is started by the StartSession middleware.
     }
 
+    /**
+     * The Laravel session is saved by the StartSession middleware. With the
+     * session fallback enabled, a copy of the pending login is cached too.
+     */
     protected function commitSession(): void
     {
-        // The Laravel session is saved by the StartSession middleware.
+        $state = $this->pendingSessionData['openid_connect_state'] ?? null;
+
+        if (! $this->sessionFallback || ! is_string($state)) {
+            return;
+        }
+
+        Cache::put($this->sessionFallbackKey($state), [
+            'client' => $this->clientFingerprint(),
+            'values' => $this->pendingSessionData,
+        ], self::SESSION_FALLBACK_TTL);
     }
 
     protected function getSessionKey(string $key): mixed
     {
-        return Session::get(SessionKeys::OIDC_PREFIX.$key, false);
+        $value = Session::get(SessionKeys::OIDC_PREFIX.$key, false);
+
+        if ($value !== false || ! $this->sessionFallback || $this->callbackState === null) {
+            return $value;
+        }
+
+        $pending = Cache::get($this->sessionFallbackKey($this->callbackState));
+
+        // Only the browser that started the login may complete it from the cache.
+        if (! is_array($pending)
+            || ($pending['client'] ?? null) !== $this->clientFingerprint()
+            || ! is_array($pending['values'] ?? null)
+            || ! array_key_exists($key, $pending['values'])) {
+            return false;
+        }
+
+        Log::info('[SPID] Session fallback used', ['key' => $key]);
+
+        return $pending['values'][$key];
     }
 
     protected function setSessionKey(string $key, mixed $value): void
     {
         Session::put(SessionKeys::OIDC_PREFIX.$key, $value);
+        $this->pendingSessionData[$key] = $value;
     }
 
     protected function unsetSessionKey(string $key): void
     {
         Session::forget(SessionKeys::OIDC_PREFIX.$key);
+        unset($this->pendingSessionData[$key]);
     }
 
     /**
@@ -283,6 +334,29 @@ class LaravelOpenIDConnectClient extends OpenIDConnectClient
         $this->lastContentType = $response->header('Content-Type') ?: null;
 
         return $response->body();
+    }
+
+    /**
+     * The cached copy is single use: it is dropped once the callback that
+     * carried its state has been processed, after the nonce was read.
+     */
+    private function forgetSessionFallback(): void
+    {
+        if ($this->sessionFallback && $this->callbackState !== null) {
+            Cache::forget($this->sessionFallbackKey($this->callbackState));
+        }
+
+        $this->callbackState = null;
+    }
+
+    private function sessionFallbackKey(string $state): string
+    {
+        return self::CACHE_PREFIX.'pending:'.hash('sha256', $state);
+    }
+
+    private function clientFingerprint(): string
+    {
+        return hash('sha256', Request::ip().'|'.Request::userAgent());
     }
 
     private function forgetCachedJwks(): bool

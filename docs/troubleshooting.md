@@ -34,7 +34,7 @@ jumbojett exchanges the authorization code **before** it compares `state` ([KI-0
   - the session expired while the user was on AAC (`SESSION_LIFETIME`);
   - the user started a second login in another tab, which replaced the stored verifier and state, see [KI-05](known-issues.md#ki-05-one-login-round-trip-per-session);
   - the user reloaded or bookmarked the callback URL (the code was already redeemed).
-- **Fix:** use a shared session store, keep login and callback on the same host and scheme, keep `SameSite=Lax`, and start a new login from `spid.login`.
+- **Fix:** use a shared session store, keep login and callback on the same host and scheme, keep `SameSite=Lax`, and start a new login from `spid.login`. If a proxy in your users' network strips the cookie and cannot be fixed, consider `session_fallback` (read its [trade-off](security.md#session-fallback-for-lost-cookies) first); with it enabled, recovered values log `[SPID] Session fallback used`.
 
 ## Redirect URI mismatch
 

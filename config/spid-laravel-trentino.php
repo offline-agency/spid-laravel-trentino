@@ -44,6 +44,15 @@ return [
     'cache_ttl' => 3600,
 
     /*
+    | Recover a login whose callback arrives without the session cookie (for
+    | example behind a proxy that strips cookies). The pending login is cached
+    | for ten minutes, keyed by state and bound to the client IP address and
+    | user agent, and can be used once. Off by default: read docs/security.md
+    | before enabling it.
+    */
+    'session_fallback' => env('SPID_TRENTINO_SESSION_FALLBACK', false),
+
+    /*
     | Set to false to register your own routes named spid.login, spid.callback
     | and spid.logout.
     */

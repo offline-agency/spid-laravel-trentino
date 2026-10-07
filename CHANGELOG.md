@@ -4,7 +4,12 @@ All notable changes to `offline-agency/spid-laravel-trentino` are documented in 
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). From 2.0.0 on, every GitHub Release also carries automatically generated notes.
 
-## [2.0.0] - Unreleased
+## [Unreleased]
+
+### Added
+- `session_fallback` option (off by default): recovers a login whose callback arrives without the session cookie, using a single-use cache entry keyed by state and bound to the client IP address and user agent. Based on the cache fallback proposed in #2.
+
+## [2.0.0] - 2026-10-07
 
 See [UPGRADE.md](UPGRADE.md) for the breaking changes.
 

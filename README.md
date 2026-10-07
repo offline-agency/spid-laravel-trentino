@@ -136,6 +136,7 @@ For applications using the package:
 - [Extending](docs/extending.md): custom controller, own routes, login button, service API
 - [Troubleshooting](docs/troubleshooting.md): log messages, causes and fixes
 - [Security](docs/security.md): what is validated, logging, production checklist
+- [Transaction log](docs/transaction-log.md): SPID/CIE OIDC retention policy (24 months), pruning, integrity checks
 
 For maintainers:
 

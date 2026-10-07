@@ -39,6 +39,8 @@ php artisan vendor:publish --tag=spid-laravel-trentino-migrations
 php artisan migrate
 ```
 
+The same tag also publishes the table of the SPID/CIE OIDC [transaction log](transaction-log.md); schedule `spid:prune-logs` daily to apply its retention policy.
+
 The migration adds the SPID columns to `users` and makes `email` and `password` nullable. Update your `User` model as described in [user model](user-model.md).
 
 ## 4. Publish the views (optional)

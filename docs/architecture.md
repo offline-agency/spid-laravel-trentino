@@ -59,6 +59,9 @@ flowchart LR
 | `Support\SessionExpiry` | Reads, writes and compares the access-token expiry | Session, Carbon |
 | `Support\TokenResponse` | Normalizes token endpoint responses (object or array) | Carbon |
 | `Support\LogRedactor` | Keyed hashes for log context | Config (`app.key`) |
+| `Services\SpidTransactionLogger` | Writes the SPID/CIE OIDC transaction log; redacts tokens; never throws | `Models\SpidTransactionLog`, Config, Request, Log, Str |
+| `Models\SpidTransactionLog` | Eloquent model of the transaction log: encrypted payload, HMAC integrity, `forTransaction` and `expired` scopes | Eloquent, Config |
+| `Console\Commands\PruneSpidTransactionLogs` | `spid:prune-logs` (24-month floor, `--dry-run`, `--months`) | `Models\SpidTransactionLog`, Config |
 | `Http\Controllers\SpidAuthController` | `login`, `callback`, `logout` actions | `SpidTrentino`, `SpidAuthenticatesUsers` |
 | `Traits\SpidAuthenticatesUsers` | `authenticateFromSpid()`, `spidLoginFailed()`, `redirectTo()` | Eloquent, Auth, Session, Redirect, Config, Log |
 | `Http\Middleware\RefreshSpidTokenIfNeeded` | Refresh within 60 s of expiry, forget tokens on failure | `SpidTrentino`, `SessionExpiry` |

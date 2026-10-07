@@ -17,6 +17,9 @@ php artisan vendor:publish --tag=spid-laravel-trentino-config
 | `scopes` | string | `openid profile.codicefiscale.me email offline_access` | `SPID_TRENTINO_SCOPES` | Space separated scopes. `openid` is removed from the list and always added by the client, so it is never sent twice. |
 | `cache_ttl` | int | `3600` | none | Seconds the discovery document and the JWKS are cached in the default cache store. `0` disables caching. A non-numeric value falls back to `3600`. |
 | `session_fallback` | bool | `false` | `SPID_TRENTINO_SESSION_FALLBACK` | Recover a login whose callback arrives without the session cookie. Opt-in; see [security](security.md#session-fallback-for-lost-cookies) before enabling it. Accepts `true`, `1`, `on`, `yes`. |
+| `transaction_log.enabled` | bool | `true` | `SPID_TRENTINO_TRANSACTION_LOG_ENABLED` | Write the SPID/CIE OIDC [transaction log](transaction-log.md). Disable only in development and tests. |
+| `transaction_log.table` | string | `spid_transaction_logs` | `SPID_TRENTINO_TRANSACTION_LOG_TABLE` | Table of the transaction log (read by the migration and the model). |
+| `transaction_log.retention_months` | int | `24` | `SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS` | Retention used by `spid:prune-logs`; values below 24 are raised to 24. |
 | `register_routes` | bool | `true` | none | `false` skips loading the package routes; register your own with the same names. |
 | `routes.login` | string | `/spid/login` | none | Path of the `spid.login` route (GET). |
 | `routes.callback` | string | `/spid/callback` | none | Path of the `spid.callback` route (GET). |

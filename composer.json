@@ -1,10 +1,15 @@
 {
     "name": "offline-agency/spid-laravel-trentino",
-    "description": "SPID Trentino authentication package for Laravel",
+    "description": "SPID authentication for Laravel through AAC Trentino (OpenID Connect with PKCE)",
     "keywords": [
-        "offline-agency",
-        "spid-laravel-trentino",
-        "aac"
+        "laravel",
+        "spid",
+        "aac",
+        "trentino",
+        "openid-connect",
+        "oidc",
+        "pkce",
+        "pubblica-amministrazione"
     ],
     "homepage": "https://github.com/offline-agency/spid-laravel-trentino",
     "license": "MIT",
@@ -13,41 +18,55 @@
         {
             "name": "Offline Agency",
             "email": "support@offlineagency.it",
+            "homepage": "https://offlineagency.it",
             "role": "Developer"
         }
     ],
+    "support": {
+        "issues": "https://github.com/offline-agency/spid-laravel-trentino/issues",
+        "source": "https://github.com/offline-agency/spid-laravel-trentino",
+        "security": "https://github.com/offline-agency/spid-laravel-trentino/security/policy"
+    },
     "require": {
-        "php": "^8.2",
-        "firebase/php-jwt": "^6.11",
-        "illuminate/auth": "^10.0|^11.0",
-        "illuminate/config": "^10.0|^11.0",
-        "illuminate/container": "^10.0|^11.0",
-        "illuminate/events": "^10.0|^11.0",
-        "illuminate/log": "^10.0|^11.0",
-        "illuminate/session": "^10.0|^11.0",
-        "illuminate/support": "^10.0|^11.0",
-        "jumbojett/openid-connect-php": "^0.9",
-        "laravel/framework": "^10.0|^11.0"
+        "php": "^8.4",
+        "illuminate/auth": "^12.69|^13.30",
+        "illuminate/cache": "^12.69|^13.30",
+        "illuminate/config": "^12.69|^13.30",
+        "illuminate/contracts": "^12.69|^13.30",
+        "illuminate/database": "^12.69|^13.30",
+        "illuminate/events": "^12.69|^13.30",
+        "illuminate/http": "^12.69|^13.30",
+        "illuminate/log": "^12.69|^13.30",
+        "illuminate/routing": "^12.69|^13.30",
+        "illuminate/session": "^12.69|^13.30",
+        "illuminate/support": "^12.69|^13.30",
+        "illuminate/view": "^12.69|^13.30",
+        "jumbojett/openid-connect-php": "^1.0.2"
     },
     "require-dev": {
-        "orchestra/testbench": "^8.36",
-        "pestphp/pest": "^1.23",
-        "phpunit/phpunit": "^9.0"
+        "firebase/php-jwt": "^7.2",
+        "larastan/larastan": "^3.12",
+        "laravel/pint": "^1.32",
+        "orchestra/testbench": "^10.2|^11.0",
+        "pestphp/pest": "^4.3|^5.0"
     },
     "autoload": {
         "psr-4": {
-            "OfflineAgency\\SpidLaravelTrentino\\": "src"
+            "OfflineAgency\\SpidLaravelTrentino\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "OfflineAgency\\SpidTrentino\\Tests\\": "tests"
+            "OfflineAgency\\SpidLaravelTrentino\\Tests\\": "tests/"
         }
     },
     "scripts": {
-        "test": "vendor/bin/phpunit",
-        "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
-
+        "test": "pest",
+        "test-coverage": "pest --coverage --min=100",
+        "mutate": "pest --mutate",
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "format": "pint",
+        "format-check": "pint --test"
     },
     "config": {
         "sort-packages": true,
@@ -55,14 +74,16 @@
             "pestphp/pest-plugin": true
         }
     },
-  "extra": {
-    "laravel": {
-      "providers": [
-        "OfflineAgency\\SpidLaravelTrentino\\SpidTrentinoServiceProvider"
-      ],
-      "aliases": {
-        "SpidTrentino": "OfflineAgency\\SpidLaravelTrentino\\SpidTrentinoFacade"
-      }
-    }
-  }
+    "extra": {
+        "laravel": {
+            "providers": [
+                "OfflineAgency\\SpidLaravelTrentino\\SpidTrentinoServiceProvider"
+            ],
+            "aliases": {
+                "SpidTrentino": "OfflineAgency\\SpidLaravelTrentino\\SpidTrentinoFacade"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

@@ -1,0 +1,33 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not report security vulnerabilities here; see SECURITY.md.
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Package, PHP and Laravel versions
+      placeholder: "spid-laravel-trentino 2.0.0, PHP 8.4.x, Laravel 13.x"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Remove tokens, fiscal codes and other personal data before pasting.
+      render: shell

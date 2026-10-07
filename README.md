@@ -7,7 +7,7 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/offline-agency/spid-laravel-trentino/tests.yml?branch=master&label=tests&style=flat-square)](https://github.com/offline-agency/spid-laravel-trentino/actions/workflows/tests.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/offline-agency/spid-laravel-trentino?style=flat-square)](https://codecov.io/gh/offline-agency/spid-laravel-trentino)
 [![PHPStan](https://img.shields.io/badge/PHPStan-level%20max-brightgreen.svg?style=flat-square)](phpstan.neon)
-[![License](https://img.shields.io/packagist/l/offline-agency/spid-laravel-trentino.svg?style=flat-square)](LICENSE.md)
+[![License](https://img.shields.io/github/license/offline-agency/spid-laravel-trentino?style=flat-square)](https://github.com/offline-agency/spid-laravel-trentino/blob/master/LICENSE.md)
 
 SPID (Sistema Pubblico di Identità Digitale) login for Laravel applications through **AAC Trentino**.
 The package runs the OpenID Connect authorization code flow with PKCE, creates or updates the local user by fiscal code, and keeps the session and tokens fresh with two middleware.
@@ -161,4 +161,4 @@ Offline Agency is a web design agency based in Padua, Italy. You'll find an over
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The MIT License (MIT). Please see [License File](https://github.com/offline-agency/spid-laravel-trentino/blob/master/LICENSE.md) for more information.

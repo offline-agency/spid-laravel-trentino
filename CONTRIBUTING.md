@@ -36,20 +36,26 @@ Before submitting a pull request:
 - Check the codebase to ensure that your feature doesn't already exist.
 - Check the pull requests to ensure that another person hasn't already submitted the feature or fix.
 
+Security vulnerabilities are never reported through issues or pull requests: see [SECURITY.md](SECURITY.md).
+
 ## Requirements
 
-If the project maintainer has any additional requirements, you will find them listed here.
+- **Coding style**: PSR-12 as enforced by [Laravel Pint](https://laravel.com/docs/pint). Run `composer format` before committing; CI runs `composer format-check`.
+- **Static analysis**: `composer analyse` (PHPStan with Larastan, level max) must pass without a baseline.
+- **Add tests!** `composer test-coverage` must stay at 100% line coverage. Bug fixes start with a test that fails without the fix.
+- **Pull request titles** follow [Conventional Commits](https://www.conventionalcommits.org/); the title decides the next release version (see the README).
+- **Document any change in behaviour**: keep `README.md`, `UPGRADE.md` and `CHANGELOG.md` up to date.
+- **Consider our release cycle**: we follow [SemVer v2.0.0](https://semver.org/). Randomly breaking public APIs is not an option.
+- **One pull request per feature**: if you want to do more than one thing, send multiple pull requests.
+- **Send coherent history**: make sure each individual commit in your pull request is meaningful. If you had to make multiple intermediate commits while developing, please [squash them](https://www.git-scm.com/book/en/v2/Git-Tools-Rewriting-History#Changing-Multiple-Commit-Messages) before submitting.
 
-- **[PSR-2 Coding Standard](https://github.com/php-fig/fig-standards/blob/master/accepted/PSR-2-coding-style-guide.md)** - The easiest way to apply the conventions is to install [PHP Code Sniffer](https://pear.php.net/package/PHP_CodeSniffer).
+## Running the checks
 
-- **Add tests!** - Your patch won't be accepted if it doesn't have tests.
-
-- **Document any change in behaviour** - Make sure the `README.md` and any other relevant documentation are kept up-to-date.
-
-- **Consider our release cycle** - We try to follow [SemVer v2.0.0](https://semver.org/). Randomly breaking public APIs is not an option.
-
-- **One pull request per feature** - If you want to do more than one thing, send multiple pull requests.
-
-- **Send coherent history** - Make sure each individual commit in your pull request is meaningful. If you had to make multiple intermediate commits while developing, please [squash them](https://www.git-scm.com/book/en/v2/Git-Tools-Rewriting-History#Changing-Multiple-Commit-Messages) before submitting.
+```bash
+composer test
+composer test-coverage
+composer analyse
+composer format-check
+```
 
 **Happy coding**!

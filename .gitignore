@@ -1,3 +1,9 @@
-vendor
-.idea
+/vendor
+/.idea
 composer.lock
+.phpunit.result.cache
+.phpunit.cache/
+/coverage
+/build
+.DS_Store
+/docs/superpowers

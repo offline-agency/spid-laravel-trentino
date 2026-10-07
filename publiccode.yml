@@ -1,0 +1,79 @@
+# publiccode.yml for the Developers Italia reuse catalogue.
+# Spec: https://yml.publiccode.tools/
+publiccodeYmlVersion: "0"
+
+name: SPID Laravel Trentino
+url: "https://github.com/offline-agency/spid-laravel-trentino"
+landingURL: "https://github.com/offline-agency/spid-laravel-trentino"
+# TODO(maintainer): keep in sync with the latest release once v2.0.0 is tagged.
+softwareVersion: "2.0.0"
+# TODO(maintainer): set to the v2.0.0 release date (YYYY-MM-DD).
+releaseDate: "2026-10-07"
+platforms:
+  - web
+categories:
+  - identity-management
+developmentStatus: stable
+softwareType: library
+
+description:
+  it:
+    shortDescription: "Autenticazione SPID per Laravel tramite AAC Trentino (OpenID Connect con PKCE)."
+    # TODO(maintainer): write a longDescription of at least 150 characters in Italian.
+    longDescription: >
+      TODO
+    features:
+      - Login SPID tramite AAC Trentino con OpenID Connect e PKCE
+      - Creazione e aggiornamento automatico degli utenti tramite codice fiscale
+      - Middleware per sessione valida e rinnovo automatico del token
+      - Eventi di login e logout
+  en:
+    shortDescription: "SPID authentication for Laravel through AAC Trentino (OpenID Connect with PKCE)."
+    # TODO(maintainer): write a longDescription of at least 150 characters.
+    longDescription: >
+      TODO
+    features:
+      - SPID login through AAC Trentino with OpenID Connect and PKCE
+      - Users created and updated by fiscal code
+      - Middleware for valid sessions and automatic token refresh
+      - Login and logout events
+
+legal:
+  license: MIT
+  # TODO(maintainer): confirm the copyright holder (Offline Agency, or the Consorzio dei Comuni Trentini as funder/owner).
+  mainCopyrightOwner: Offline Agency
+
+maintenance:
+  type: contract
+  contractors:
+    - name: Offline Agency
+      # TODO(maintainer): end date of the maintenance contract (YYYY-MM-DD).
+      until: "TODO"
+      website: "https://offlineagency.it"
+  contacts:
+    - name: Offline Agency
+      email: support@offlineagency.it
+
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - it
+    - en
+
+dependsOn:
+  open:
+    - name: PHP
+      versionMin: "8.4"
+    - name: Laravel
+      versionMin: "12.69"
+
+IT:
+  countryExtensionVersion: "1.0"
+  piattaforme:
+    spid: true
+    pagopa: false
+    cie: false
+    anpr: false
+    io: false
+  # TODO(maintainer): if the software is released by a public administration, add
+  # riuso.codiceIPA with the IPA code of the owning administration (for example the Consorzio dei Comuni Trentini).

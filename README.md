@@ -1,183 +1,163 @@
 # SPID Laravel Trentino
-[![Latest Stable Version](https://poser.pugx.org/offline-agency/spid-laravel-trentino/v/stable)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
+
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/offline-agency/spid-laravel-trentino.svg?style=flat-square)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
 [![Total Downloads](https://img.shields.io/packagist/dt/offline-agency/spid-laravel-trentino.svg?style=flat-square)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
-[![Build Status](https://github.com/offline-agency/spid-laravel-trentino/actions/workflows/test.yml/badge.svg)](https://github.com/offline-agency/spid-laravel-trentino/actions/workflows/test.yml)
-[![MIT Licensed](https://img.shields.io/badge/license-MIT-brightgreen.svg?style=flat-square)](LICENSE.md)
-This package provides integration with AAC Trentino via OpenID Connect, allowing users to authenticate using SPID (Sistema Pubblico di Identità Digitale) with full Laravel compatibility.
+[![PHP Version](https://img.shields.io/packagist/dependency-v/offline-agency/spid-laravel-trentino/php?style=flat-square)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
+[![Laravel Version](https://img.shields.io/packagist/dependency-v/offline-agency/spid-laravel-trentino/illuminate%2Fsupport?label=laravel&style=flat-square)](https://packagist.org/packages/offline-agency/spid-laravel-trentino)
+[![Tests](https://img.shields.io/github/actions/workflow/status/offline-agency/spid-laravel-trentino/tests.yml?branch=master&label=tests&style=flat-square)](https://github.com/offline-agency/spid-laravel-trentino/actions/workflows/tests.yml)
+[![Coverage](https://img.shields.io/codecov/c/github/offline-agency/spid-laravel-trentino?style=flat-square)](https://codecov.io/gh/offline-agency/spid-laravel-trentino)
+[![PHPStan](https://img.shields.io/badge/PHPStan-level%20max-brightgreen.svg?style=flat-square)](phpstan.neon)
+[![License](https://img.shields.io/packagist/l/offline-agency/spid-laravel-trentino.svg?style=flat-square)](LICENSE.md)
 
----
+SPID (Sistema Pubblico di Identità Digitale) login for Laravel applications through **AAC Trentino**.
+The package runs the OpenID Connect authorization code flow with PKCE, creates or updates the local user by fiscal code, and keeps the session and tokens fresh with two middleware.
 
-## Features
+## Funding and reuse
 
-* SPID login and callback via AAC Trentino (PKCE)
-* Stores user data and token info in session
-* Emits `SpidTrentinoLoggedIn` and `SpidTrentinoLoggedOut` events
-* Middleware for:
+This package was developed with funding from the [Consorzio dei Comuni Trentini](https://www.comunitrentini.it/) and is released as open source software for reuse by public administrations and other parties, in line with art. 69 of the Italian CAD (Codice dell'Amministrazione Digitale).
 
-  * Ensuring valid SPID session
-  * Auto-refreshing tokens via `refresh_token`
-* Extensible controller logic via config
-* Compatible with `spatie/laravel-permission` (optional)
-* `access_token_expires_at` support
+## Requirements
 
----
+| Requirement | Supported versions |
+|-------------|--------------------|
+| PHP | 8.4, 8.5 |
+| Laravel | 12 (12.69+), 13 (13.30+) |
+| AAC Trentino | An OIDC client with the redirect URI of your callback route and the scopes `openid profile.codicefiscale.me email offline_access` |
 
-## Installation
+Every combination (PHP 8.4 and 8.5, Laravel 12 and 13, lowest and latest dependencies) runs in CI.
+
+## Quick start
+
+**1. Install**
 
 ```bash
 composer require offline-agency/spid-laravel-trentino
 ```
 
----
-
-## Configuration
+**2. Publish the configuration and the migration, then migrate**
 
 ```bash
-php artisan vendor:publish --tag=spid-config
+php artisan vendor:publish --tag=spid-laravel-trentino-config
+php artisan vendor:publish --tag=spid-laravel-trentino-migrations
+php artisan migrate
 ```
 
-### `config/spid.php`
+**3. Configure `.env`**
+
+```dotenv
+SPID_TRENTINO_CLIENT_ID=your-client-id
+SPID_TRENTINO_CLIENT_SECRET=your-client-secret
+SPID_TRENTINO_REDIRECT_URI=https://your-app.test/spid/callback
+SPID_TRENTINO_PROVIDER_URL=https://aac-test.cloud-test.tndigit.it
+```
+
+Register the same redirect URI on AAC. The provider URL above is the AAC **test** environment.
+
+**4. Prepare the user model**
 
 ```php
-return [
-
-    // OIDC Credentials
-    'client_id'     => env('SPID_TRENTINO_CLIENT_ID'),
-    'client_secret' => env('SPID_TRENTINO_CLIENT_SECRET'),
-    'redirect_uri'  => env('SPID_TRENTINO_REDIRECT_URI'),
-    'provider_url'  => env('SPID_TRENTINO_PROVIDER_URL', 'https://aac-test.cloud-test.tndigit.it'),
-    'scopes'        => env('SPID_TRENTINO_SCOPES', 'openid profile.codicefiscale.me email offline_access'),
-
-    // Routes
-    'routes' => [
-        'login'    => '/spid/login',
-        'callback' => '/spid/callback',
-        'logout'   => '/logout',
-    ],
-
-    // Controller to handle SPID login/logout flow
-    'auth_controller' => \OfflineAgency\SpidLaravelTrentino\Http\Controllers\SpidAuthController::class,
-
-    // Where to redirect after login (null = dynamic logic via trait)
-    'redirect_to' => '/dashboard',
+protected $fillable = [
+    'name', 'email', 'password',
+    'fiscal_code', 'surname', 'preferred_username', 'locale', 'zoneinfo',
 ];
-```
 
----
-
-## Routes
-
-The package defines 3 default routes:
-
-| Method | Path             | Purpose                         |
-| ------ | ---------------- | ------------------------------- |
-| GET    | `/spid/login`    | Redirects user to AAC login     |
-| GET    | `/spid/callback` | Handles AAC callback            |
-| POST   | `/logout`        | Logs out and clears the session |
-
-You can override both paths and controller from the config.
-
----
-
-## Middleware
-
-Register in `app/Http/Kernel.php`:
-
-```php
-protected $routeMiddleware = [
-    'spid.valid'   => \OfflineAgency\SpidLaravelTrentino\Http\Middleware\EnsureValidSpidToken::class,
-    'spid.refresh' => \OfflineAgency\SpidLaravelTrentino\Http\Middleware\RefreshSpidTokenIfNeeded::class,
-];
-```
-
-Use in your routes:
-
-```php
-Route::middleware(['web', 'auth', 'spid.valid', 'spid.refresh'])->group(function () {
-    Route::get('/area-riservata', fn () => view('private.dashboard'));
-});
-```
-
----
-
-## Extending Behavior
-
-You can override the controller to customize login behavior:
-
-```php
-namespace App\Http\Controllers\Auth;
-
-use OfflineAgency\SpidLaravelTrentino\Http\Controllers\SpidAuthController as BaseController;
-use OfflineAgency\SpidLaravelTrentino\SpidTrentinoUser;
-
-class SpidAuthController extends BaseController
+protected function casts(): array
 {
-    protected function authenticateFromSpid(SpidTrentinoUser $spidUser): void
-    {
-        parent::authenticateFromSpid($spidUser);
-
-        $user = auth()->user();
-        if ($user->exists && ! $user->hasRole('default')) {
-            $user->assignRole('default');
-        }
-    }
+    return [
+        'password' => 'hashed',
+        'spid_profile' => 'array',
+    ];
 }
 ```
 
-And update `config/spid.php`:
+**5. Protect your routes and add the login button**
+
+The middleware aliases are registered by the package; put `spid.refresh` before `spid.valid`. If SPID is your only login, send guests to it in `bootstrap/app.php` (Laravel's `auth` middleware otherwise redirects to a route named `login`):
 
 ```php
-'auth_controller' => \App\Http\Controllers\Auth\SpidAuthController::class,
+use Illuminate\Foundation\Configuration\Middleware;
+
+->withMiddleware(function (Middleware $middleware): void {
+    $middleware->redirectGuestsTo(fn () => route('spid.login'));
+})
 ```
 
----
+Then add the button to a view:
 
-## Session Values
+```blade
+<x-spid-laravel-trentino::login-button />
+```
 
-| Key                       | Description                             |
-| ------------------------- | --------------------------------------- |
-| `spid_trentino_user`      | Array of decoded user info              |
-| `access_token`            | Raw OIDC access token                   |
-| `refresh_token`           | Token for refreshing (if available)     |
-| `access_token_expires_at` | `Carbon` instance with expiry timestamp |
+## Minimal example
 
----
-
-## Events
-
-You may listen to:
-
-* `SpidTrentinoLoggedIn(SpidTrentinoUser $user)`
-* `SpidTrentinoLoggedOut(SpidTrentinoUser $user)`
-
-Example:
+`routes/web.php`:
 
 ```php
-Event::listen(SpidTrentinoLoggedIn::class, function ($event) {
-    // handle login
+use Illuminate\Support\Facades\Route;
+
+Route::view('/', 'welcome');
+
+Route::middleware(['web', 'auth', 'spid.refresh', 'spid.valid'])->group(function () {
+    Route::get('/area-riservata', fn () => 'Benvenuto, '.auth()->user()->name);
 });
 ```
 
----
+`resources/views/welcome.blade.php`:
 
-## Token Expiry
+```blade
+@if (session()->has(\OfflineAgency\SpidLaravelTrentino\SessionKeys::ERROR))
+    <p>{{ session(\OfflineAgency\SpidLaravelTrentino\SessionKeys::ERROR) }}</p>
+@endif
 
-The package automatically stores `access_token_expires_at` if `expires_in` is available in the token response.
-Use the provided middleware to refresh tokens or invalidate sessions gracefully.
+@auth
+    <form method="POST" action="{{ route('spid.logout') }}">
+        @csrf
+        <button type="submit">Esci</button>
+    </form>
+@else
+    <x-spid-laravel-trentino::login-button />
+@endauth
+```
 
-## Contributing
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+Opening `/area-riservata` as a guest sends the user to `spid.login` (through `auth` and `redirectGuestsTo()` from step 5). Clicking the button starts the SPID login at `/spid/login`; after AAC the user returns to `/spid/callback`, is created or updated by fiscal code, logged in, and redirected to the page they asked for.
+
+## Documentation
+
+For applications using the package:
+
+- [Installation](docs/installation.md): requirements, publishing, environment variables, AAC registration, middleware
+- [Configuration](docs/configuration.md): every configuration key and the default routes
+- [User model](docs/user-model.md): columns, `$fillable`, casts, how users are matched
+- [Authentication flow](docs/authentication-flow.md): login, callback and logout sequences
+- [Session and tokens](docs/session-and-tokens.md): session keys, expiry, refresh
+- [Middleware](docs/middleware.md): `spid.refresh` and `spid.valid`
+- [Events](docs/events.md): `SpidTrentinoLoggedIn` and `SpidTrentinoLoggedOut`
+- [User DTO](docs/user-dto.md): `SpidTrentinoUser` and the AAC claims
+- [Extending](docs/extending.md): custom controller, own routes, login button, service API
+- [Troubleshooting](docs/troubleshooting.md): log messages, causes and fixes
+- [Security](docs/security.md): what is validated, logging, production checklist
+
+For maintainers:
+
+- [Architecture](docs/architecture.md): class map and container bindings
+- [Development](docs/development.md): tests, quality gates, CI, releases
+- [Known issues](docs/known-issues.md): open issues in 2.0 and 1.x problems fixed in 2.0
+
+Also: [UPGRADE.md](UPGRADE.md) (1.x to 2.0), [CHANGELOG.md](CHANGELOG.md), [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Security
-If you discover any security-related issues, please email support@offlineagency.com instead of using the issue tracker.
+
+Report vulnerabilities privately, see [SECURITY.md](SECURITY.md) (contact: support@offlineagency.it).
 
 ## Credits
-- [Giacomo Fabbian](https://github.com/Giacomo92)
 
-- [All Contributors](https://github.com/offline-agency/laravel-mongo-auto-sync/graphs/contributors)
+- [Giacomo Fabbian](https://github.com/Giacomo92)
+- [All Contributors](https://github.com/offline-agency/spid-laravel-trentino/graphs/contributors)
 
 ## About us
-Offline Agency is a web design agency based in Padua, Italy. You'll find an overview of our projects [on our website](https://offlineagency.it/#home).
+
+Offline Agency is a web design agency based in Padua, Italy. You'll find an overview of our projects [on our website](https://offlineagency.it/).
 
 ## License
+
 The MIT License (MIT). Please see [License File](LICENSE.md) for more information.

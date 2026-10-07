@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  # pull_request_target so merged PRs from forks also get a write token. Safe here:
+  # the job runs only after the merge and checks out merge_commit_sha (already on
+  # master); code from the PR head is never executed.
+  pull_request_target:
+    types: [closed]
+    branches: [master]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Merged PRs only: closed-without-merge PRs and skip-release PRs never release.
+    if: github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'skip-release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Compute the next version
+        id: version
+        env:
+          # Title and body go through env, never into the script text (prevents script injection).
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          latest="$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
+          next="$(bash .github/scripts/next-version.sh "$latest")"
+          echo "Latest: ${latest:-none}, next: $next"
+          echo "tag=$next" >> "$GITHUB_OUTPUT"
+
+      - name: Create the annotated tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG" "$SHA"
+          # Pushed with GITHUB_TOKEN: no commit is created and no other workflow is triggered.
+          git push origin "refs/tags/$TAG"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh release create "$TAG" --verify-tag --generate-notes --title "$TAG"

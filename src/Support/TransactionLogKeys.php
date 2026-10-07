@@ -36,7 +36,7 @@ final class TransactionLogKeys
     public static function current(): array
     {
         $id = self::currentId();
-        $secret = self::secret($id);
+        $secret = self::secrets($id)[0] ?? null;
 
         if ($secret === null) {
             throw new LogicException("The transaction log key [{$id}] is not configured.");
@@ -46,17 +46,24 @@ final class TransactionLogKeys
     }
 
     /**
-     * Secret of a key id; `null` means `app` (rows written before key ids existed).
+     * Secrets that may have signed a row with this key id: for app (or a row
+     * without key id) the current APP_KEY, then each APP_PREVIOUS_KEYS entry,
+     * so rows stay verifiable after an APP_KEY rotation.
+     *
+     * @return list<string>
      */
-    public static function secret(?string $id): ?string
+    public static function secrets(?string $id): array
     {
         if ($id === null || $id === self::APP) {
-            $appKey = Config::get('app.key');
+            $previous = Config::get('app.previous_keys');
+            $candidates = [Config::get('app.key'), ...(is_array($previous) ? $previous : [])];
 
-            return is_string($appKey) && $appKey !== '' ? $appKey : null;
+            return array_values(array_unique(array_filter($candidates, fn (mixed $key): bool => is_string($key) && $key !== '')));
         }
 
-        return self::configured()[$id] ?? null;
+        $secret = self::configured()[$id] ?? null;
+
+        return $secret === null ? [] : [$secret];
     }
 
     /**

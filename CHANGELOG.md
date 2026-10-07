@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `spid:prune-logs` deletes only the oldest contiguous run of expired rows and records a checkpoint, so the remaining chain has no gaps.
 
 ### Fixed
-- Rotating `APP_KEY` no longer makes older transaction log rows fail `verifyIntegrity()` once dedicated HMAC keys are configured (KI-13). The log is now tamper-evident (KI-15).
+- Rotating `APP_KEY` no longer makes older transaction log rows fail `verifyIntegrity()`: rows signed with `APP_KEY` are also verified with `APP_PREVIOUS_KEYS`, and dedicated HMAC keys can be configured (KI-13). The log is now tamper-evident (KI-15).
 
 ## [2.1.0] - 2026-10-07
 

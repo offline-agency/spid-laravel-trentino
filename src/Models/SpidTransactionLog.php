@@ -130,9 +130,13 @@ class SpidTransactionLog extends Model
      */
     public function verifyIntegrity(): bool
     {
-        $secret = TransactionLogKeys::secret($this->key_id);
+        foreach (TransactionLogKeys::secrets($this->key_id) as $secret) {
+            if (hash_equals(hash_hmac('sha256', $this->payload, $secret), $this->payload_hmac)) {
+                return true;
+            }
+        }
 
-        return $secret !== null && hash_equals(hash_hmac('sha256', $this->payload, $secret), $this->payload_hmac);
+        return false;
     }
 
     /**

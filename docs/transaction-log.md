@@ -90,10 +90,10 @@ Two kinds of keys protect the log:
 
 | Key | Used for | Rotation |
 |-----|----------|----------|
-| `APP_KEY` | Encrypting the payload (Laravel `encrypted` cast) | List the old key in `APP_PREVIOUS_KEYS` for as long as rows encrypted with it are retained (24 months or more) |
+| `APP_KEY` | Encrypting the payload (Laravel `encrypted` cast), and the HMAC of rows signed with the key id `app` | List the old key in `APP_PREVIOUS_KEYS` for as long as rows encrypted or signed with it are retained (24 months or more): it is used both to decrypt and to verify them |
 | HMAC keys (`transaction_log.keys`) | `payload_hmac` of each row, recorded by id in `key_id` | Add a new id, switch `current_key` to it, keep the old ids configured while their rows are retained |
 
-The key id `app` always means `APP_KEY` (the raw string, exactly as earlier versions used it), and rows without a `key_id` were signed with it. Until you configure your own keys, new rows keep using `app`.
+The key id `app` always means `APP_KEY` (the raw string, exactly as earlier versions used it), and rows without a `key_id` were signed with it. Until you configure your own keys, new rows keep using `app`. Rows signed with `app` are verified with the current `APP_KEY` and then with each key in `APP_PREVIOUS_KEYS`, so they stay verifiable after an `APP_KEY` rotation as long as the old key is listed there.
 
 To move to a dedicated HMAC key, or to rotate it:
 
@@ -106,7 +106,7 @@ SPID_TRENTINO_TRANSACTION_LOG_KEYS="2026a:base64:...,2027a:base64:..."
 SPID_TRENTINO_TRANSACTION_LOG_CURRENT_KEY=2027a
 ```
 
-Generate secrets with `php -r 'echo "base64:".base64_encode(random_bytes(32)), PHP_EOL;'`. An id that is malformed, or a secret that is empty or not valid base64, is ignored; if `current_key` names a key that is not configured, writing a row fails (and is logged) instead of signing with a wrong key. Dedicated HMAC keys also mean that rotating `APP_KEY` no longer invalidates the HMAC of older rows.
+Generate secrets with `php -r 'echo "base64:".base64_encode(random_bytes(32)), PHP_EOL;'`. An id that is malformed, or a secret that is empty or not valid base64, is ignored; if `current_key` names a key that is not configured, writing a row fails (and is logged) instead of signing with a wrong key. With dedicated HMAC keys, rotating `APP_KEY` only affects decryption.
 
 **Key escrow.** A row can only be verified while its HMAC key is available, and only be read while its `APP_KEY` is available. Store every key that protected retained rows (current and previous `APP_KEY`, every HMAC key id and secret) in a secrets manager or a sealed escrow held by someone other than the application operators, and keep it for the whole retention period. Losing a key does not delete rows, but they can no longer be proven intact or decrypted.
 
@@ -118,7 +118,9 @@ Every row stores the chain hash of the row written before it (`previous_hash`) a
 chain_hash = sha256(previous_hash + "\n" + payload_hmac + "\n" + canonical JSON of the searchable columns, key_id and created_at)
 ```
 
-The first chained row links to `sha256("spid-laravel-trentino:genesis")`. The hash is plain SHA-256, not keyed: anyone holding the rows and the digests can check the links without any secret. Appends are serialized through the single row of `<table>_heads`, which each write locks before reading the current head, so concurrent logins never link to the same row; on lock contention the write is attempted up to three times.
+The first chained row links to `sha256("spid-laravel-trentino:genesis")`. The hash is plain SHA-256, not keyed: anyone holding the rows and the digests can check the links without any secret. Appends are serialized through the single row of `<table>_heads` (created by the migration): each write locks it, then reads the current head with a locking read, so concurrent logins never link to the same row. Outside an application transaction, a write that hits lock contention is attempted up to three times.
+
+The lock is held until the surrounding transaction commits. The package writes the log outside transactions; if you call `SpidTransactionLog::log()` inside your own transaction, keep that transaction short, because every other login waits for it.
 
 ## Verification
 
@@ -127,7 +129,7 @@ php artisan spid:verify-logs                                    # the whole log,
 php artisan spid:verify-logs --from=2026-03-01 --to=2026-03-31  # one month
 ```
 
-For every row the command checks the HMAC, that `previous_hash` matches the row before it and that `chain_hash` matches the row. It stops at the first row that fails, prints `Row #<id> failed verification: <reason>` and exits with code 1 (code 2 for invalid dates). Without `--to` it also checks that the last row is the chain head, which detects deleted newest rows. With `--from`, the first row is checked against the row before it (or the prune checkpoint), whose own integrity is not checked.
+For every row the command checks the HMAC, that `previous_hash` matches the row before it and that `chain_hash` matches the row. It stops at the first row that fails, prints `Row #<id> failed verification: <reason>` and exits with code 1 (code 2 for invalid dates). Without `--to` it also checks that the chain head recorded when the command started still exists with the same hash, which detects deleted newest rows; rows appended while the command runs are not reported. With `--from`, the first row is checked against the row before it (or the prune checkpoint), whose own integrity is not checked.
 
 Rows written before the hash chain existed are reported as legacy: only their HMAC is checked, and they must all come before the first chained row.
 

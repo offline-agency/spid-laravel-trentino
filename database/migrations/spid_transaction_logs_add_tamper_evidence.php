@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -29,6 +30,12 @@ return new class extends Migration
             $table->string('head_hash', 64)->nullable();
             $table->timestamps();
         });
+
+        // Seeded here so concurrent first appends never race to create it.
+        $now = CarbonImmutable::now();
+        (new SpidTransactionLog)->getConnection()->table(SpidTransactionLog::headsTable())->insert([
+            'id' => 1, 'created_at' => $now, 'updated_at' => $now,
+        ]);
 
         // Anchors written by spid:prune-logs, so verification survives pruning.
         Schema::create(SpidTransactionLog::checkpointsTable(), function (Blueprint $table): void {

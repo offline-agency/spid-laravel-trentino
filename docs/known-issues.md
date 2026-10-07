@@ -129,7 +129,7 @@ There are no Critical issues open.
 
 | # | Issue | Fixed by |
 |---|-------|----------|
-| KI-13 | Transaction log integrity checks depended on the current `APP_KEY`: rotating it made older rows fail `verifyIntegrity()` | Versioned HMAC keys (`transaction_log.keys`, `transaction_log.current_key`); each row records its key in `key_id` and is verified with that key, and `app` keeps meaning `APP_KEY` for older rows. See [keys and rotation](transaction-log.md#keys-and-rotation) |
+| KI-13 | Transaction log integrity checks depended on the current `APP_KEY`: rotating it made older rows fail `verifyIntegrity()` | Versioned HMAC keys (`transaction_log.keys`, `transaction_log.current_key`); each row records its key in `key_id` and is verified with that key. Rows signed with `app` (`APP_KEY`, including every row written before the upgrade) are also verified with the keys in `APP_PREVIOUS_KEYS`. See [keys and rotation](transaction-log.md#keys-and-rotation) |
 | KI-15 | The transaction log was not tamper-evident: a row could be rewritten with a recomputed HMAC, and deleted rows left no trace | SHA-256 hash chain over every row, checkpoints recorded by `spid:prune-logs`, `spid:verify-logs`, and daily digests of the chain on write-once storage with `spid:log-digest`; key escrow documented. See [hash chain](transaction-log.md#hash-chain) |
 
 ## Resolved in 2.0

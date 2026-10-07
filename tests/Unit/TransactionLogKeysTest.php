@@ -7,8 +7,8 @@ use OfflineAgency\SpidLaravelTrentino\Support\TransactionLogKeys;
 mutates(TransactionLogKeys::class);
 
 it('resolves the app key id to APP_KEY exactly as 2.x signed rows', function () {
-    expect(TransactionLogKeys::secret('app'))->toBe(config('app.key'))
-        ->and(TransactionLogKeys::secret(null))->toBe(config('app.key'))
+    expect(TransactionLogKeys::secrets('app'))->toBe([config('app.key')])
+        ->and(TransactionLogKeys::secrets(null))->toBe([config('app.key')])
         ->and(TransactionLogKeys::currentId())->toBe('app')
         ->and(TransactionLogKeys::current())->toBe(['app', config('app.key')]);
 });
@@ -17,8 +17,8 @@ it('parses id:secret pairs from the environment string, decoding base64 secrets'
     config()->set('spid-laravel-trentino.transaction_log.keys', '2026a:plain-secret, 2026b:base64:'.base64_encode('binary-secret'));
     config()->set('spid-laravel-trentino.transaction_log.current_key', '2026b');
 
-    expect(TransactionLogKeys::secret('2026a'))->toBe('plain-secret')
-        ->and(TransactionLogKeys::secret('2026b'))->toBe('binary-secret')
+    expect(TransactionLogKeys::secrets('2026a'))->toBe(['plain-secret'])
+        ->and(TransactionLogKeys::secrets('2026b'))->toBe(['binary-secret'])
         ->and(TransactionLogKeys::current())->toBe(['2026b', 'binary-secret']);
 });
 
@@ -32,12 +32,12 @@ it('accepts an array of keys set in the configuration file', function () {
 it('ignores malformed pairs and never lets a configured key replace app', function () {
     config()->set('spid-laravel-trentino.transaction_log.keys', 'no-separator,:missing-id,bad id:x,empty:,app:override,ok:fine,b64:base64:%%%');
 
-    expect(TransactionLogKeys::secret('ok'))->toBe('fine')
-        ->and(TransactionLogKeys::secret('empty'))->toBeNull()
-        ->and(TransactionLogKeys::secret('bad id'))->toBeNull()
-        ->and(TransactionLogKeys::secret('b64'))->toBeNull()
-        ->and(TransactionLogKeys::secret('app'))->toBe(config('app.key'))
-        ->and(TransactionLogKeys::secret('unknown'))->toBeNull();
+    expect(TransactionLogKeys::secrets('ok'))->toBe(['fine'])
+        ->and(TransactionLogKeys::secrets('empty'))->toBe([])
+        ->and(TransactionLogKeys::secrets('bad id'))->toBe([])
+        ->and(TransactionLogKeys::secrets('b64'))->toBe([])
+        ->and(TransactionLogKeys::secrets('app'))->toBe([config('app.key')])
+        ->and(TransactionLogKeys::secrets('unknown'))->toBe([]);
 });
 
 it('rejects a current key without a secret', function (mixed $currentKey) {
@@ -56,5 +56,5 @@ it('falls back to the app key when current_key is empty', function (mixed $curre
 it('has no app secret when APP_KEY is missing', function () {
     config()->set('app.key', null);
 
-    expect(TransactionLogKeys::secret('app'))->toBeNull();
+    expect(TransactionLogKeys::secrets('app'))->toBe([]);
 });

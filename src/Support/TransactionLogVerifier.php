@@ -30,6 +30,8 @@ final class TransactionLogVerifier
 
     public function verify(?CarbonImmutable $from = null, ?CarbonImmutable $to = null): VerificationResult
     {
+        // Captured first: rows appended while the log is walked are not missing rows.
+        $head = $to === null ? $this->head() : null;
         $firstId = $this->firstId($from);
         $lastId = $this->lastId($to);
         $this->anchor($firstId);
@@ -55,7 +57,7 @@ final class TransactionLogVerifier
             }
         }
 
-        $missing = $to === null ? $this->missingHead() : null;
+        $missing = $head === null ? null : $this->missingHead(...$head);
 
         if ($missing !== null) {
             return new VerificationResult(false, $checked, $legacy, $missing, 'the newest rows are missing: the chain head does not match the last row.');
@@ -140,7 +142,7 @@ final class TransactionLogVerifier
 
     private function integrityProblem(SpidTransactionLog $row): ?string
     {
-        if (TransactionLogKeys::secret($row->key_id) === null) {
+        if (TransactionLogKeys::secrets($row->key_id) === []) {
             return 'the HMAC key ['.($row->key_id ?? TransactionLogKeys::APP).'] is not configured.';
         }
 
@@ -152,18 +154,26 @@ final class TransactionLogVerifier
     }
 
     /**
-     * Id recorded in the chain head when the head is ahead of the last
-     * checked row.
+     * The chain head (id and hash of the newest chained row) when there is one.
+     *
+     * @return array{0: int, 1: string}|null
      */
-    private function missingHead(): ?int
+    private function head(): ?array
     {
         $head = $this->table(SpidTransactionLog::headsTable())->first(['head_id', 'head_hash']);
 
-        if ($head === null || ! is_string($head->head_hash) || $head->head_hash === $this->expected) {
-            return null;
-        }
+        return $head !== null && is_numeric($head->head_id) && is_string($head->head_hash)
+            ? [(int) $head->head_id, $head->head_hash]
+            : null;
+    }
 
-        return is_numeric($head->head_id) ? (int) $head->head_id : 0;
+    /**
+     * Id of the chain head when its row no longer exists or no longer carries
+     * the head hash: the newest rows were deleted or replaced.
+     */
+    private function missingHead(int $headId, string $headHash): ?int
+    {
+        return SpidTransactionLog::query()->find($headId)?->chain_hash === $headHash ? null : $headId;
     }
 
     private function table(string $table): Builder

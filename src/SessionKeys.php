@@ -22,6 +22,9 @@ final class SessionKeys
     /** Flash message set when the SPID login fails. */
     public const string ERROR = 'spid_trentino_error';
 
+    /** Id grouping the transaction log records of one login (see Services\SpidTransactionLogger). */
+    public const string TRANSACTION_ID = 'spid_trentino_transaction_id';
+
     /** Prefix of the OIDC state, nonce and PKCE verifier kept during the login round trip. */
     public const string OIDC_PREFIX = 'spid_trentino_oidc_';
 }

@@ -53,6 +53,19 @@ return [
     'session_fallback' => env('SPID_TRENTINO_SESSION_FALLBACK', false),
 
     /*
+    | Transaction log required by the SPID/CIE OIDC retention policy: every
+    | OIDC message of a login is stored encrypted (with APP_KEY) and signed with
+    | an HMAC, and must be kept for at least 24 months. Publish and run the
+    | migrations, then schedule the prune command:
+    |   Schedule::command('spid:prune-logs')->daily();
+    */
+    'transaction_log' => [
+        'enabled' => env('SPID_TRENTINO_TRANSACTION_LOG_ENABLED', true),
+        'table' => env('SPID_TRENTINO_TRANSACTION_LOG_TABLE', 'spid_transaction_logs'),
+        'retention_months' => env('SPID_TRENTINO_TRANSACTION_LOG_RETENTION_MONTHS', 24),
+    ],
+
+    /*
     | Set to false to register your own routes named spid.login, spid.callback
     | and spid.logout.
     */

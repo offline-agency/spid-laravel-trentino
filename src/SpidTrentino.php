@@ -14,6 +14,7 @@ use Jumbojett\OpenIDConnectClientException;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedIn;
 use OfflineAgency\SpidLaravelTrentino\Events\SpidTrentinoLoggedOut;
 use OfflineAgency\SpidLaravelTrentino\OpenIdConnect\LaravelOpenIDConnectClient;
+use OfflineAgency\SpidLaravelTrentino\Services\SpidTransactionLogger;
 use OfflineAgency\SpidLaravelTrentino\Support\LogRedactor;
 use OfflineAgency\SpidLaravelTrentino\Support\SessionExpiry;
 use OfflineAgency\SpidLaravelTrentino\Support\TokenResponse;
@@ -21,7 +22,10 @@ use stdClass;
 
 class SpidTrentino
 {
-    public function __construct(private readonly LaravelOpenIDConnectClient $oidc) {}
+    public function __construct(
+        private readonly LaravelOpenIDConnectClient $oidc,
+        private readonly SpidTransactionLogger $transactionLog,
+    ) {}
 
     /**
      * @throws OpenIDConnectClientException
@@ -30,7 +34,19 @@ class SpidTrentino
     {
         Log::info('[SPID] Redirecting to AAC Trentino login');
 
-        return $this->oidc->authorizationRedirect();
+        $redirect = $this->oidc->authorizationRedirect();
+
+        $transactionId = SpidTransactionLogger::newTransactionId();
+        Session::put(SessionKeys::TRANSACTION_ID, $transactionId);
+
+        $target = $redirect->getTargetUrl();
+        parse_str((string) parse_url($target, PHP_URL_QUERY), $request);
+        $this->transactionLog->logAuthenticationRequest($transactionId, [
+            'authorization_endpoint' => strtok($target, '?'),
+            ...$request,
+        ]);
+
+        return $redirect;
     }
 
     /**
@@ -54,9 +70,25 @@ class SpidTrentino
             'request_has_state' => Request::has('state'),
         ]);
 
+        $transactionId = $this->transactionId();
+        $callback = Request::only(['code', 'state', 'error', 'error_description']);
+        $this->transactionLog->logAuthenticationResponse($transactionId, $callback);
+
         $this->oidc->authenticate();
-        $tokens = TokenResponse::from($this->oidc->getTokenResponse());
+
+        $this->transactionLog->logTokenRequest($transactionId, [
+            'grant_type' => 'authorization_code',
+            'code' => $callback['code'] ?? null,
+            'client_id' => $this->oidc->getClientID(),
+            'redirect_uri' => $this->oidc->getRedirectURL(),
+        ]);
+        $rawTokens = $this->oidc->getTokenResponse();
+        $this->transactionLog->logTokenResponse($transactionId, SpidTransactionLogger::redactTokens(self::toArray($rawTokens)));
+        $tokens = TokenResponse::from($rawTokens);
+
+        $this->transactionLog->logUserInfoRequest($transactionId, ['authorization' => 'Bearer (access token)']);
         $userInfo = $this->oidc->requestUserInfo();
+        $this->transactionLog->logUserInfoResponse($transactionId, self::toArray($userInfo));
         $user = new SpidTrentinoUser($userInfo instanceof stdClass ? $userInfo : []);
 
         if ($user->getFiscalNumber() === '') {
@@ -85,7 +117,14 @@ class SpidTrentino
             return;
         }
 
-        $tokens = TokenResponse::from($this->oidc->refreshToken($refreshToken));
+        $transactionId = $this->transactionId();
+        $this->transactionLog->logRefreshRequest($transactionId, [
+            'grant_type' => 'refresh_token',
+            'client_id' => $this->oidc->getClientID(),
+        ]);
+        $rawTokens = $this->oidc->refreshToken($refreshToken);
+        $this->transactionLog->logRefreshResponse($transactionId, SpidTransactionLogger::redactTokens(self::toArray($rawTokens)));
+        $tokens = TokenResponse::from($rawTokens);
 
         if ($tokens->accessToken === null) {
             throw new OpenIDConnectClientException('AAC refused the token refresh: '.($tokens->error ?? 'no access token returned'));
@@ -103,6 +142,10 @@ class SpidTrentino
     {
         $payload = Session::get(SessionKeys::USER);
         $user = new SpidTrentinoUser(is_array($payload) ? $payload : []);
+
+        if ($user->getFiscalNumber() !== '') {
+            $this->transactionLog->logLogout($this->transactionId(), ['sub' => $user->getSub()]);
+        }
 
         Auth::logout();
         Session::invalidate();
@@ -128,6 +171,26 @@ class SpidTrentino
         $userInfo = $this->oidc->requestUserInfo();
 
         return is_object($userInfo) ? $userInfo : null;
+    }
+
+    /**
+     * Transaction log id of the current login, or a new one when the session has none.
+     */
+    private function transactionId(): string
+    {
+        $transactionId = Session::get(SessionKeys::TRANSACTION_ID);
+
+        return is_string($transactionId) ? $transactionId : SpidTransactionLogger::newTransactionId();
+    }
+
+    /**
+     * @return array<array-key, mixed>
+     */
+    private static function toArray(mixed $value): array
+    {
+        $array = json_decode((string) json_encode($value), true);
+
+        return is_array($array) ? $array : [];
     }
 
     private function storeTokens(TokenResponse $tokens, ?string $currentRefreshToken = null): void
